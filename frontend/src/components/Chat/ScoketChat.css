@@ -1,0 +1,110 @@
+
+/* General gradients and color overlays */
+.gradient-bg {
+    background: linear-gradient(to right, #434343 0%, #000 100%);
+  }
+  .gradient-bg2 {
+    background: linear-gradient(to right, #323232 0%, #222 100%);
+  }
+  .sidebar-bg {
+    background: linear-gradient(to right, #434343 0%, #000 100%);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Overlay & darken for message readability */
+  .messages-area {
+    position: relative;
+    min-height: 0;
+    height: calc(100vh - 230px);
+  }
+  
+  
+  
+  .messages-area .z-1 { position: relative; z-index: 1; }
+  
+  .user-avatar-bg {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, #202020, #371111); /* pink to violet */
+  }
+  
+  .icon-btn {
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    transition: background .2s;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .icon-btn:hover, .icon-btn:active {
+    background: rgba(255,255,255,0.14);
+  }
+  
+  /* Online status dot */
+  .online-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #41ef30;
+    display: inline-block;
+    animation: onlineGlow 1s infinite alternate;
+    margin-right: 0.3em;
+  }
+  @keyframes onlineGlow {
+    0%   { box-shadow: 0 0 0px #64dd17; }
+    100% { box-shadow: 0 0 8px #73ff50, 0 0 0px #64dd17; }
+  }
+  
+  .user-pill {
+    background: rgba(255,255,255,0.14);
+  }
+  
+  
+  /* Chat message bubbles */
+  .message-bubble {
+    border-radius: 2rem;
+    max-width: 80%;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 4px 24px 0 rgba(0,0,0,.12);
+    margin: 0 0.5rem;
+  }
+  .own-msg {
+    background: linear-gradient(90deg, #f5f6f8 90%, #99989b 100%);
+    color: #191818;
+    margin-left: 1rem;
+  }
+  .other-msg {
+    background: rgba(255,255,255,0.18);
+    border: 1.2px solid #fff3;
+    color: #fff;
+    margin-right: 1rem;
+  }
+  
+  /* Message input */
+  .message-input {
+    border-radius: 18px;
+    border: 1.5px solid #999;
+    background: rgba(255,255,255,0.12);
+  }
+  .message-input::placeholder { color: #bbb !important; }
+  .send-btn {
+    background: linear-gradient(90deg, #e9e7ed, #717f97);
+    color: #fff;
+    border-radius: 50px;
+    border: none;
+    transition: transform .12s;
+    padding: 0.6em 1.1em;
+  }
+  .send-btn:disabled {
+    opacity: 0.46;
+    cursor: not-allowed;
+  }
+  .send-btn:hover, .send-btn:focus {
+    filter: brightness(1.07);
+    transform: scale(1.08);
+  }
+  
+  
+  
