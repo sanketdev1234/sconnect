@@ -1,61 +1,247 @@
 // src/components/Home.jsx
-import { Routes, Route, useLocation } from "react-router-dom";
-import Sidebar from "./Sidebar";
-import CreateMeeting from "./Meet/CreateMeeting";
-import Login from "./Auth/Login";
-import Signup from "./Auth/Signup";
-import Showmeetdetail from "./Meet/Showmeetdetail";
-import Userdashboard from "./Userdashboard";
-import ScoketChat from "./Chat/ScoketChat";
-import Contactsanket from "./Contactsanket";
-import Joinmeeting from "./Meet/Joinmeet";
-import NotFound from "./Notfound";
-import ProfileCreation from "./profile/profilecreate";
-import DisplayProfile from "./profile/profileview";
-import UpdateProfile from "./profile/updateprofile";
-import CreatePost from "./post/createpost";
-import LandingPage from "./Landingpage";
-import SeeAllPosts from "./post/seeallpost";
-import EditPost from "./post/editpost";
-import SeeAllPostsUser from "./post/seespecificpost";
-import ShowmyConnections from "./connections/showmyconnections";
-import Showincomingrequest from "./connections/incomingrequests";
+import React, { useContext, useEffect, useState } from 'react';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { UserContext } from './usercontext';
+import axios from 'axios';
 
-const noSidebarRoutes = ['/', '/landingpage', '/login', '/signup'];
+import Sidebar from './Sidebar';
+import CreateMeeting from './Meet/CreateMeeting';
+import Login from './Auth/Login';
+import Signup from './Auth/Signup';
+import Showmeetdetail from './Meet/Showmeetdetail';
+import Userdashboard from './Userdashboard';
+import ScoketChat from './Chat/ScoketChat';
+import Contactsanket from './Contactsanket';
+import Joinmeeting from './Meet/Joinmeet';
+import NotFound from './Notfound';
+import ProfileCreation from './profile/profilecreate';
+import DisplayProfile from './profile/profileview';
+import UpdateProfile from './profile/updateprofile';
+import CreatePost from './post/createpost';
+import LandingPage from './Landingpage';
+import SeeAllPosts from './post/seeallpost';
+import EditPost from './post/editpost';
+import SeeAllPostsUser from './post/seespecificpost';
+import ShowmyConnections from './connections/showmyconnections';
+import Showincomingrequest from './connections/incomingrequests';
 
-function Home() {
+// Routes where sidebar should NOT appear
+const NO_SIDEBAR_ROUTES = ['/', '/landingpage', '/login', '/signup'];
+
+// ─── Route Guards ──────────────────────────────────────────────────────────────
+
+// Redirect to /login if not authenticated
+// Backend: GET /auth/authstatus → { status: true, user } or "token not found"
+function ProtectedRoute({ children }) {
+  const { curruser, authLoading } = useContext(UserContext);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!curruser) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
+// Redirect to /dashboard if already logged in (for login/signup pages)
+function PublicRoute({ children }) {
+  const { curruser, authLoading } = useContext(UserContext);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (curruser) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+}
+
+// ─── Layout Shell ──────────────────────────────────────────────────────────────
+
+function AppShell({ children }) {
   const location = useLocation();
-  const showSidebar = !noSidebarRoutes.includes(location.pathname);
+  const showSidebar = !NO_SIDEBAR_ROUTES.includes(location.pathname);
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       {showSidebar && <Sidebar />}
-      <div className={showSidebar ? "ml-64 flex-1 p-4" : "flex-1"}>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/landingpage" element={<LandingPage />} />
-          <Route path="/dashboard" element={<Userdashboard />} />
-          <Route path="/newmeet" element={<CreateMeeting />} />
-          <Route path="/joinmeet" element={<Joinmeeting />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/meet/:id/detail" element={<Showmeetdetail />} />
-          <Route path="/ongoingmeet/:meetid/:joinid" element={<ScoketChat />} />
-          <Route path="/contact" element={<Contactsanket />} />
-          <Route path="/createprofile" element={<ProfileCreation />} />
-          <Route path="/getprofile/:wantid" element={<DisplayProfile />} />
-          <Route path="/updateprofile/:wantid/:profileId" element={<UpdateProfile />} />
-          <Route path="/createpost" element={<CreatePost />} />
-          <Route path="/editpost/:postId" element={<EditPost />} />
-          <Route path="/feed" element={<SeeAllPosts />} />
-          <Route path="/feed/:full_name" element={<SeeAllPostsUser />} />
-          <Route path="/myconnections" element={<ShowmyConnections />} />
-          <Route path="/incomingrequests" element={<Showincomingrequest />} />
-          <Route path="/*" element={<NotFound />} />
-        </Routes>
+      <div className={showSidebar ? 'md:ml-60' : ''}>
+        {children}
       </div>
     </div>
   );
 }
 
-export default Home;
+// ─── Main Home Component ───────────────────────────────────────────────────────
+
+export default function Home() {
+  return (
+    <AppShell>
+      <Routes>
+
+        {/* ── Public Routes ── */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/landingpage" element={<LandingPage />} />
+
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <PublicRoute>
+              <Signup />
+            </PublicRoute>
+          }
+        />
+
+        {/* ── Protected Routes ── */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Userdashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/feed"
+          element={
+            <ProtectedRoute>
+              <SeeAllPosts />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/feed/:full_name"
+          element={
+            <ProtectedRoute>
+              <SeeAllPostsUser />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/createpost"
+          element={
+            <ProtectedRoute>
+              <CreatePost />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/editpost/:postId"
+          element={
+            <ProtectedRoute>
+              <EditPost />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/newmeet"
+          element={
+            <ProtectedRoute>
+              <CreateMeeting />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/joinmeet"
+          element={
+            <ProtectedRoute>
+              <Joinmeeting />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/meet/:id/detail"
+          element={
+            <ProtectedRoute>
+              <Showmeetdetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ongoingmeet/:meetid/:joinid"
+          element={
+            <ProtectedRoute>
+              <ScoketChat />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/createprofile"
+          element={
+            <ProtectedRoute>
+              <ProfileCreation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/getprofile/:wantid"
+          element={
+            <ProtectedRoute>
+              <DisplayProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/updateprofile/:wantid/:profileId"
+          element={
+            <ProtectedRoute>
+              <UpdateProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/myconnections"
+          element={
+            <ProtectedRoute>
+              <ShowmyConnections />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/incomingrequests"
+          element={
+            <ProtectedRoute>
+              <Showincomingrequest />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contact"
+          element={
+            <ProtectedRoute>
+              <Contactsanket />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── 404 ── */}
+        <Route path="*" element={<NotFound />} />
+
+      </Routes>
+    </AppShell>
+  );
+}

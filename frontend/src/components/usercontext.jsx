@@ -1,22 +1,38 @@
-import {useState ,useEffect , createContext} from "react"
-import axios from "axios";
-export const UserContext =createContext(null);
+// src/components/usercontext.jsx
+import React, { createContext, useState, useEffect } from 'react';
+import axios from 'axios';
 
-export const UserContextprovider=(props)=>{
+export const UserContext = createContext(null);
 
-const [curruser,setcurruser]=useState({});
-useEffect(()=>{
-    async function getuser(){
-        const response=await axios.get("/auth/authstatus",{withCredentials:true});
-        console.log("the response in contex file",response);
-        setcurruser(response.data.user);
-    }
-    getuser();
-},[]);
-return (
-<UserContext.Provider value={{curruser}}>
-{props.children}
-</UserContext.Provider>
-)
+export function UserContextProvider({ children }) {
+  const [curruser, setcurruser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true); // true until first auth check completes
 
+  // Backend: GET /auth/authstatus
+  // Success → { status: true, user: {...} }
+  // No token → "token not found" (plain text, status 200)
+  // Invalid token → "token not match" (plain text)
+  useEffect(() => {
+    axios.get('/auth/authstatus', { withCredentials: true })
+      .then(res => {
+        // Backend returns JSON only on success, plain strings on failure
+        if (res.data?.status === true && res.data?.user) {
+          setcurruser(res.data.user);
+        } else {
+          setcurruser(null);
+        }
+      })
+      .catch(() => {
+        setcurruser(null);
+      })
+      .finally(() => {
+        setAuthLoading(false);
+      });
+  }, []);
+
+  return (
+    <UserContext.Provider value={{ curruser, setcurruser, authLoading }}>
+      {children}
+    </UserContext.Provider>
+  );
 }
