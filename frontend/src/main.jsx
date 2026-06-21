@@ -11,7 +11,7 @@ import './index.css';
 // ── Global Axios Config ───────────────────────────────────────────────────────
 // Set once here — no need to repeat in every component
 axios.defaults.withCredentials = true;
-axios.defaults.baseURL = 'http://localhost:8080';
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 // ── Global Axios Error Interceptor ────────────────────────────────────────────
 // Catches 401 across the whole app — redirects to login
