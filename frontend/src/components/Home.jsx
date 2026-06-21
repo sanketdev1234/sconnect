@@ -24,6 +24,7 @@ import EditPost from './post/editpost';
 import SeeAllPostsUser from './post/seespecificpost';
 import ShowmyConnections from './connections/showmyconnections';
 import Showincomingrequest from './connections/incomingrequests';
+import VideoCall from './Video/VideoCall';
 
 // Routes where sidebar should NOT appear
 const NO_SIDEBAR_ROUTES = ['/', '/landingpage', '/login', '/signup'];
@@ -189,6 +190,14 @@ export default function Home() {
             </ProtectedRoute>
           }
         />
+        <Route
+  path="/videocall/:joinid"
+  element={
+    <ProtectedRoute>
+      <VideoCall />
+    </ProtectedRoute>
+  }
+/>
         <Route
           path="/createprofile"
           element={

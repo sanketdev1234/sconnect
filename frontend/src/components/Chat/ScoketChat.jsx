@@ -13,6 +13,7 @@ import {
   Users, ArrowLeft, Loader2, AlertCircle,
   Hash, RefreshCw, MessageSquare , Clock
 } from 'lucide-react';
+import { Video } from 'lucide-react';
 
 // ── Socket singleton — one connection for the whole session ──────────────────
 // Created outside component so it persists across re-renders
@@ -746,6 +747,15 @@ const handleEndNow = async () => {
             Leave
           </button>
         </div>
+
+        <button
+  onClick={() => navigate(`/videocall/${joinid}`)}
+  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
+>
+  <Video size={13} />
+  Start Video
+</button>
+
       </div>
 
       {/* ── Body: chat + optional online panel ── */}
