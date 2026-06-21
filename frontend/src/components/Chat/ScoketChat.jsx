@@ -17,7 +17,8 @@ import { Video } from 'lucide-react';
 
 // ── Socket singleton — one connection for the whole session ──────────────────
 // Created outside component so it persists across re-renders
-const socket = io('http://localhost:8080', {
+const url=import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const socket = io(url, {
   withCredentials: true,
   autoConnect: true,
 });
