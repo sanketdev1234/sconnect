@@ -7,11 +7,13 @@ const getmeetdetail=require("../Controller/meetcontroller").getmeetdetail;
 const deletemeet=require("../Controller/meetcontroller").deletemeet;
 const iscorrect_owner=require("../middleware/authmiddleware").iscorrect_owner;
 const joinmeet=require("../Controller/meetcontroller").joinmeet;
+const endmeetingnow = require("../Controller/meetcontroller").endmeetingnow;
 
 router.get("/all",getallmeeting);
 router.get("/:joinid/join",joinmeet);
 router.post("/new",create_new_meet);
 router.get("/:meetid/detail",iscorrect_owner,getmeetdetail);
 router.delete("/:meetid/delete",iscorrect_owner,deletemeet);
+router.patch("/:meetid/end", iscorrect_owner, endmeetingnow);
 
 module.exports=router;

@@ -21,6 +21,8 @@ const postroute=require("./routes/postRoute");
 const commentroute=require("./routes/commentRoute");
 const connectionroute=require("./routes/connectionroute");
 const extraroutes=require("./routes/extraroutes");
+const startMeetingScheduler = require("./Utilities/meetingScheduler");
+
 const server = createServer(app);
 
 const port=process.env.PORT || 8080;
@@ -43,6 +45,7 @@ const io=SocketController(server);
 main()
 .then(() => {
     console.log("connection successful");
+    startMeetingScheduler();
 })
 .catch((err) => console.log(err));
 

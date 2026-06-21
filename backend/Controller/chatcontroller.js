@@ -4,25 +4,42 @@ const chat=require("../model/chat");
 const meeting=require("../model/meeting");
 const ExpressError=require("../Utilities/ExpressError");
 
-module.exports.create_new_chat=async(req,res)=>{
+module.exports.create_new_chat = async (req, res) => {
     try {
-    const meetid=req.params.meetid;
-    const curr_meet=await meeting.findById(meetid);
-    console.log("the current ongoing meet is ",curr_meet);
-    const Content=req.body.Content;
-    const new_chat=await chat.insertOne({Content:Content});
-    new_chat.Author=req.user._id; // update according to multiple user
-    new_chat.Meet=meetid;
-    await new_chat.save();
-    curr_meet.Chats.push(new_chat);
-    await curr_meet.save();
-    res.send(new_chat);
-    }
-    catch(err){
-    console.log(err);
-    res.send(err);
+        const meetid = req.params.meetid;
+        const curr_meet = await meeting.findById(meetid);
+
+        if (!curr_meet) {
+            return res.status(404).send("Meeting not found");
+        }
+
+        const Content = req.body.Content;
+        if (!Content || !Content.trim()) {
+            return res.status(400).send("Message content is required");
+        }
+
+        // ✅ Use `new chat(...)` + `.save()` instead of insertOne — this is the correct Mongoose pattern
+        const new_chat = new chat({
+            Content: Content,
+            Author: req.user._id,
+            Meet: meetid,
+        });
+        await new_chat.save();
+
+        curr_meet.Chats.push(new_chat._id);
+        await curr_meet.save();
+
+        // Populate Author before sending back so frontend has display_name immediately
+        await new_chat.populate("Author", "display_name email profile_picture");
+
+        res.status(201).send(new_chat);
+
+    } catch (err) {
+        console.log(err);
+        res.status(500).send("Failed to save message");
     }
 };
+
 module.exports.all_chat_see=async(req,res)=>{
     try {
         const meetid=req.params.meetid;

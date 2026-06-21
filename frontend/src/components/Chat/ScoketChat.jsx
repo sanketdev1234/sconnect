@@ -11,7 +11,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import {
   Send, Pencil, Trash2, X, Check,
   Users, ArrowLeft, Loader2, AlertCircle,
-  Hash, RefreshCw, MessageSquare
+  Hash, RefreshCw, MessageSquare , Clock
 } from 'lucide-react';
 
 // ── Socket singleton — one connection for the whole session ──────────────────
@@ -192,6 +192,11 @@ export default function ScoketChat() {
   const messagesRef = useRef(messages); // keep messages in sync for socket callbacks
   messagesRef.current = messages;
 
+  // for auto end meetings
+const [meetingInfo, setMeetingInfo] = useState(null);
+const [timeRemaining, setTimeRemaining] = useState(null);
+const [warningShown, setWarningShown] = useState(false);
+
   // ── Scroll to bottom ────────────────────────────────────────────────────────
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -362,6 +367,74 @@ export default function ScoketChat() {
       });
     };
   }, [curruser, joinid, meetid]);
+
+
+
+// Fetch meeting info on mount (StartAt, EndAt)
+useEffect(() => {
+  const fetchMeetingInfo = async () => {
+    try {
+      const res = await axios.get(`/meeting/${meetid}/detail`, { withCredentials: true });
+      setMeetingInfo(res.data);
+    } catch {
+      // Non-host users get 403 — fall back gracefully, no timer shown
+    }
+  };
+  fetchMeetingInfo();
+}, [meetid]);
+
+// Countdown timer — ticks every second
+useEffect(() => {
+  if (!meetingInfo?.EndAt) return;
+
+  const interval = setInterval(() => {
+    const end = new Date(meetingInfo.EndAt);
+    const now = new Date();
+    const diffMs = end - now;
+
+    if (diffMs <= 0) {
+      setTimeRemaining(0);
+      clearInterval(interval);
+      return;
+    }
+
+    setTimeRemaining(diffMs);
+
+    // Show 5-minute warning once
+    if (diffMs <= 5 * 60 * 1000 && !warningShown) {
+      toast.warning('Meeting ends in 5 minutes', {
+        position: 'top-center',
+        autoClose: 5000,
+      });
+      setWarningShown(true);
+    }
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [meetingInfo, warningShown]);
+
+// Listen for server-pushed end event
+useEffect(() => {
+  const onMeetingEnded = ({ joinid: endedJoinId }) => {
+    if (endedJoinId === joinid) {
+      toast.error('This meeting has ended', { position: 'top-center', autoClose: 4000 });
+      setTimeout(() => navigate('/dashboard'), 2500);
+    }
+  };
+  socket.on('Meeting Ended', onMeetingEnded);
+  return () => socket.off('Meeting Ended', onMeetingEnded);
+}, [joinid, navigate]);
+
+// Format remaining time as MM:SS or HH:MM:SS
+const formatTimeRemaining = (ms) => {
+  if (ms === null) return null;
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
 
   // ── Send Message ─────────────────────────────────────────────────────────────
 
@@ -564,6 +637,23 @@ export default function ScoketChat() {
     navigate('/dashboard');
   };
 
+
+  // ── End Meeting Now (host only) ──────────────────────────────────────────────
+
+const isHost = meetingInfo?.Hosted_by?._id?.toString() === curruser?._id?.toString();
+
+const handleEndNow = async () => {
+  if (!window.confirm('End this meeting for everyone now?')) return;
+  try {
+    await axios.patch(`/meeting/${meetid}/end`, {}, { withCredentials: true });
+    socket.emit('Meeting Ended', { joinid, meetid });
+    toast.success('Meeting ended');
+    setTimeout(() => navigate('/dashboard'), 1000);
+  } catch {
+    toast.error('Failed to end meeting');
+  }
+};
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -610,6 +700,18 @@ export default function ScoketChat() {
               </div>
             </div>
           </div>
+
+          {timeRemaining !== null && (
+      <div className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg ${
+    timeRemaining <= 5 * 60 * 1000
+      ? 'bg-red-50 text-red-600 border border-red-200'
+      : 'bg-gray-100 text-gray-600'
+  }`}>
+    <Clock size={12} />
+    {timeRemaining === 0 ? 'Ended' : formatTimeRemaining(timeRemaining)}
+  </div>
+)}
+
         </div>
 
         {/* Right side — online users toggle */}
@@ -625,6 +727,17 @@ export default function ScoketChat() {
             <Users size={13} />
             {onlineUsers.length}
           </button>
+           
+
+           {isHost && (
+  <button
+    onClick={handleEndNow}
+    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+  >
+    End Meeting
+  </button>
+)} 
+
 
           <button
             onClick={handleLeave}

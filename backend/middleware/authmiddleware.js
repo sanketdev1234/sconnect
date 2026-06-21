@@ -158,6 +158,25 @@ module.exports.iscorrect_owner_comment=async(req,res,next)=>{
     }
 }
 
+// New, separate middleware — only checks if meeting has ended, no chatid required
+module.exports.isMeetingActive = async (req, res, next) => {
+  try {
+    const meetid = req.params.meetid;
+    const curr_meet = await meeting.findById(meetid);
 
+    if (!curr_meet) {
+      return res.status(404).send("Meeting not found");
+    }
+
+    if (curr_meet.isEnded) {
+      return res.status(400).send("This meeting has ended. You can no longer send messages.");
+    }
+
+    next();
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send("Server error");
+  }
+};
 
 // handle the error in catch block use return next(err) later recheck for betterment;

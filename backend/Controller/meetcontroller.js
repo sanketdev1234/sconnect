@@ -24,18 +24,44 @@ module.exports.getallmeeting=async(req,res)=>{
     }
     
 };
-module.exports.joinmeet=async(req,res)=>{
-    const joinid=req.params.joinid;
-    const curr_meet=await meeting.findOne({Joining_id:joinid}).populate("Hosted_by");
-    console.log("user id ",req.user._id);
-    console.log("curr meet is",curr_meet);
-    console.log("Host is",curr_meet.Hosted_by._id)
-    if(curr_meet.Hosted_by._id.toString()!=req.user._id.toString()){
-    curr_meet.Participants.push(req.user._id);
-    await curr_meet.save();
+// Controller/meetcontroller.js
+module.exports.joinmeet = async (req, res) => {
+    try {
+        const joinid = req.params.joinid;
+        const curr_meet = await meeting.findOne({ Joining_id: joinid }).populate("Hosted_by");
+
+        // ✅ This check was completely missing — null check before using curr_meet
+        if (!curr_meet) {
+            return res.status(404).send("Meeting not found");
+        }
+
+        // ✅ The isEnded check we discussed earlier — also missing until now
+        if (curr_meet.isEnded) {
+            return res.status(400).send("This meeting has ended");
+        }
+
+        console.log("user id ", req.user._id);
+        console.log("curr meet is", curr_meet);
+        console.log("Host is", curr_meet.Hosted_by._id);
+
+        if (curr_meet.Hosted_by._id.toString() != req.user._id.toString()) {
+            // Avoid duplicate participant entries on repeat joins
+            const alreadyJoined = curr_meet.Participants.some(
+                p => p.toString() === req.user._id.toString()
+            );
+            if (!alreadyJoined) {
+                curr_meet.Participants.push(req.user._id);
+                await curr_meet.save();
+            }
+        }
+
+        res.status(200).send(curr_meet);
+
+    } catch (err) {
+        console.log(err);
+        res.status(500).send("Failed to join meeting. Please try again.");
     }
-    res.send(curr_meet);
-}
+};
 
 module.exports.create_new_meet=async(req,res)=>{
     try{
@@ -87,4 +113,26 @@ module.exports.deletemeet=async(req,res)=>{
         res.send(err);
     }
 
+};
+
+module.exports.endmeetingnow = async (req, res) => {
+    try {
+        const meetid = req.params.meetid;
+        const ended_meet = await meeting.findByIdAndUpdate(
+            meetid,
+            { $set: { isEnded: true, EndAt: new Date() } },
+            { new: true }
+        );
+        if (!ended_meet) {
+            return res.status(404).send("Meeting not found");
+        }
+        res.status(200).json({
+            message: "meeting ended",
+            meeting: ended_meet,
+            status: true
+        });
+    } catch (err) {
+        console.log(err);
+        res.send(err);
+    }
 };

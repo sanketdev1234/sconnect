@@ -71,38 +71,44 @@ export default function CreateMeeting() {
   // Body: { Joining_id, StartAt, EndAt (optional) }
   // Returns: plain text `added new meet ${curr_meet}`
   // Note: backend sends plain string — not JSON
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validate()) return;
+// Backend: POST /meeting/new
+// Body: { Joining_id, StartAt, EndAt (optional) }
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validate()) return;
 
-    setLoading(true);
-    try {
-      const payload = {
-        Joining_id: form.Joining_id,
-        StartAt: form.StartAt,
-      };
-      if (form.EndAt) payload.EndAt = form.EndAt;
-
-      await axios.post('/meeting/new', payload, { withCredentials: true });
-
-      // Backend returns plain text regardless — treat any 200 as success
-      toast.success('Meeting created successfully!');
-      setTimeout(() => navigate('/dashboard'), 1000);
-
-    } catch (err) {
-      if (err.response?.status === 401) {
-        setErrors({ general: 'Session expired. Please log in again.' });
-        toast.error('Session expired');
-      } else if (err.response?.status === 400) {
-        setErrors({ general: 'Invalid meeting details. Please check your inputs.' });
-      } else {
-        setErrors({ general: 'Failed to create meeting. Please try again.' });
-        toast.error('Something went wrong');
-      }
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    // ✅ FIX: Convert datetime-local string to a real Date object first,
+    // then to ISO string — this captures the browser's actual timezone offset
+    // correctly instead of sending an ambiguous timezone-less string
+    const payload = {
+      Joining_id: form.Joining_id,
+      StartAt: new Date(form.StartAt).toISOString(),
+    };
+    if (form.EndAt) {
+      payload.EndAt = new Date(form.EndAt).toISOString();
     }
-  };
+
+    await axios.post('/meeting/new', payload, { withCredentials: true });
+
+    toast.success('Meeting created successfully!');
+    setTimeout(() => navigate('/dashboard'), 1000);
+
+  } catch (err) {
+    if (err.response?.status === 401) {
+      setErrors({ general: 'Session expired. Please log in again.' });
+      toast.error('Session expired');
+    } else if (err.response?.status === 400) {
+      setErrors({ general: 'Invalid meeting details. Please check your inputs.' });
+    } else {
+      setErrors({ general: 'Failed to create meeting. Please try again.' });
+      toast.error('Something went wrong');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Min datetime = now (can't create meeting in past)
   const nowLocal = () => {
