@@ -1,3 +1,5 @@
+require("dotenv").config({path:require("path").resolve(__dirname,"../.env")});
+
 // Controller/SockeioController.js
 const { Server } = require('socket.io');
 const cors = require("cors");
@@ -14,7 +16,7 @@ let ioInstance = null;
 module.exports.SocketController = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: ["http://localhost:5173"],
+      origin: [process.env.CLIENT_URL || "http://localhost:5173"],
       credentials: true,
       methods: ["GET", "POST", "PATCH", "PUT", "DELETE"]
     },
