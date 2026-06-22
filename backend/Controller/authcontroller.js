@@ -106,6 +106,7 @@ res.cookie("token", "", {
 }
 module.exports.userstatus = (req, res) => {
     const token = req.cookies.token
+    console.log(token);
     if (!token) {
       return res.send("token not found ")
     }
