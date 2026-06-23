@@ -11,7 +11,6 @@ import Signup from './Auth/Signup';
 import Showmeetdetail from './Meet/Showmeetdetail';
 import Userdashboard from './Userdashboard';
 import ScoketChat from './Chat/ScoketChat';
-import Contactsanket from './Contactsanket';
 import Joinmeeting from './Meet/Joinmeet';
 import NotFound from './Notfound';
 import ProfileCreation from './profile/profilecreate';
@@ -238,15 +237,6 @@ export default function Home() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/contact"
-          element={
-            <ProtectedRoute>
-              <Contactsanket />
-            </ProtectedRoute>
-          }
-        />
-
         {/* ── 404 ── */}
         <Route path="*" element={<NotFound />} />
 
