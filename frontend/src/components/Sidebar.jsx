@@ -87,10 +87,8 @@ export default function Sidebar() {
   // ✅ FIX: removed process.env.DEFAULT_PHOTO_URL — Vite has no `process`
   // Check the URL string itself instead
   const hasRealPhoto =
-    curruser?.profile_picture?.url &&
-    !curruser.profile_picture.url.includes('placeholder') &&
-    !curruser.profile_picture.url.includes('default_name');
-
+    curruser?.profile_picture?.url;
+    
   const navItems = [
     {
       group: 'Main',

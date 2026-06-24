@@ -76,7 +76,7 @@ function MeetingCard({ meeting, onDelete, deleteLoading }) {
             </p>
             <p className="text-xs text-gray-400 truncate">
               Hosted by {meeting.Hosted_by?.full_name || 'Unknown'}
-            </p>
+            </p> 
           </div>
         </div>
         {/* Status badge */}
