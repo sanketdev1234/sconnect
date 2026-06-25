@@ -85,7 +85,7 @@ export default function CreatePost() {
     setError('');
 
     // Validate — need at least text or image
-    if (!text.trim() && !file) {
+    if (!text.trim()) {
       setError('Please write something or add an image before posting.');
       return;
     }
