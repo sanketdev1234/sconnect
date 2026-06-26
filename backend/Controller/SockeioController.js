@@ -20,7 +20,7 @@ module.exports.SocketController = (server) => {
       credentials: true,
       methods: ["GET", "POST", "PATCH", "PUT", "DELETE"]
     },
-    connectionStateRecovery: {}
+    connectionStateRecovery: {}  // browser close karke rejoin kiya within 2 min toh sare char preserve rahege and rejoin hojauga and same socket id ke sath , agar refresh kiya toh sare reload hoga chat preserve nahi rahege and new socketid se join hoega
   });
   ioInstance = io;
 
