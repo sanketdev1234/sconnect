@@ -1,9 +1,20 @@
-function passwordValidator(password, cb) {
-    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])([^\s]){8,}$/;
-    if (!regex.test(password)) {
-        return cb('Password must be at least 8 characters long and contain lowercase, uppercase, digit, special char, and no spaces.');
-    }
-    cb(); // This means the password is valid
-}
+function passwordValidator(password) {
+    if (!password || typeof password !== 'string') return false;
+    if (password.length < 8) return false;
+    if (password.includes(' ')) return false;
 
+    const chars = password.split('');
+    const hasLowercase = chars.some(char => char >= 'a' && char <= 'z');
+    const hasUppercase = chars.some(char => char >= 'A' && char <= 'Z');
+    const hasDigit     = chars.some(char => char >= '0' && char <= '9');
+    const hasSpecial   = chars.some(char => {
+        const isLetterOrNum = (char >= 'a' && char <= 'z') || 
+                              (char >= 'A' && char <= 'Z') || 
+                              (char >= '0' && char <= '9');
+        return !isLetterOrNum;
+    });
+
+    // Returns true ONLY if every single rule is met
+    return hasLowercase && hasUppercase && hasDigit && hasSpecial;
+}
 module.exports=passwordValidator;

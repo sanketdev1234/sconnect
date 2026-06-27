@@ -46,23 +46,28 @@ required: [true, "Your gender is required"],
     }
 });
 
-userSchema.pre("save",  function (next) {
+userSchema.pre("save", async function (next) {
     const User = this;
-    //validat the password
-    passwordValidator(User.password,function(err){
-        if(err) return next(err);
-    // Step 2: Generate salt
-    bcrypt.genSalt(saltround, function (err, salt) {
-      // Step 3: Hash the password using the salt
-    bcrypt.hash(User.password, salt, function (err, hash) {
-        // Step 4: Replace plain password with hashed password
+
+    // 1. Validate the password directly
+    const isValid = passwordValidator(User.password);
+    
+    if (!isValid) {
+        // If false, stop immediately and pass a clean error to Mongoose
+        return next(new Error('Password must be at least 8 characters long and contain lowercase, uppercase, digit, special char, and no spaces.'));
+    }
+
+    // 2. Since the password is safe, proceed to hash it cleanly
+    try {
+        const salt = await bcrypt.genSalt(saltround);
+        const hash = await bcrypt.hash(User.password, salt);
+
         User.password = hash;
-        // Step 5: Continue with saving the user
-        next();
-        });
-    });
-    })
-    });
+        next(); // Tell Mongoose it's safe to save to the database!
+    } catch (error) {
+        next(error); // Catches unexpected system/hashing errors
+    }
+});
 
 
 const user=mongoose.model("user",userSchema);
