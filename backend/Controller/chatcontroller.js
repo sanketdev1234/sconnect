@@ -89,3 +89,35 @@ catch(err){
     res.send(err);
 }
 }
+
+
+
+
+// module.exports.edit_chat = async (req, res, next) => {
+//     try {
+//         const { Content } = req.body;
+//         const { chatid } = req.params;
+
+//         if (!Content || !Content.trim()) {
+//             return res.status(400).send("Content cannot be empty");
+//         }
+
+//         // 🟢 Just update the chat content. The ID stays the same, so the meeting stays perfectly linked!
+//         const updated_chat = await chat.findByIdAndUpdate(
+//             chatid,
+//             { $set: { Content: Content } }, // Explicit $set is an excellent, safe practice
+//             { new: true }
+//         ).populate("Author", "display_name profile_picture"); // Populate so frontend can refresh instantly
+
+//         if (!updated_chat) {
+//             return res.status(404).send("Chat message not found");
+//         }
+
+//         console.log("updated chat is", updated_chat);
+//         res.status(200).json(updated_chat);
+
+//     } catch (err) {
+//         console.log(err);
+//         res.status(500).send("Error updating chat");
+//     }
+// };

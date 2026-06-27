@@ -1,4 +1,4 @@
-const { findByIdAndUpdate } = require("../model/comment");
+const comment = require("../model/comment");
 const post=require("../model/post");
 const user = require("../model/user");
 
