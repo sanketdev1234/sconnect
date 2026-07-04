@@ -4,6 +4,7 @@ const jwt=require("jsonwebtoken");
 const bcrypt=require("bcrypt");
 const createtoken=require("../Utilities/secreattoken");
 
+const isProduction = process.env.NODE_ENV === "production";
 
 module.exports.signup=async(req,res,next)=>{
     try{
@@ -37,8 +38,8 @@ module.exports.signup=async(req,res,next)=>{
         console.log("the token is",token);
 res.cookie("token", token, {
   httpOnly: true,
-  secure: false,
-  sameSite: "lax",
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
   maxAge: 24 * 60 * 60 * 1000,
 });
 res.status(201).send("new user added");
@@ -79,8 +80,8 @@ module.exports.login=async(req,res,next)=>{
     const token=createtoken(isexisuser._id);
 res.cookie("token", token, {
   httpOnly: true,
-  secure: false,
-  sameSite:"lax",
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
   maxAge: 24 * 60 * 60 * 1000,
 });
     // res.send("login successfull");
@@ -97,8 +98,8 @@ res.cookie("token", token, {
 module.exports.logout=(req,res)=>{
 res.cookie("token", "", {
   httpOnly: true,
-  secure: false,
-  sameSite:"lax",
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
   maxAge:0,
 });
     res.send("logout done");
