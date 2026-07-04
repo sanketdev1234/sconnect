@@ -50,15 +50,15 @@ main()
 .catch((err) => console.log(err));
 
 //   // connecting the mongo db with the localhost
-async function main() {
-await mongoose.connect("mongodb://localhost:27017/Zoom");
-}
+// async function main() {
+// await mongoose.connect("mongodb://localhost:27017/Zoom");
+// }
 
 
 // // connecting the mongo database with the mongoatlas cloud servive
-// async function main() {
-//   await mongoose.connect(dburl);
-// }
+async function main() {
+  await mongoose.connect(dburl);
+}
 
 server.listen(port, () => {
 console.log(`server running at ${port}`);
