@@ -1,4 +1,6 @@
+if (process.env.NODE_ENV !== "production") {
 require("dotenv").config({path:require("path").resolve(__dirname,"../.env")});
+}
 const user=require("../model/user");
 const jwt=require("jsonwebtoken");
 const bcrypt=require("bcrypt");

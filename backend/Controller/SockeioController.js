@@ -1,5 +1,6 @@
+if (process.env.NODE_ENV !== "production") {
 require("dotenv").config({path:require("path").resolve(__dirname,"../.env")});
-
+}
 // Controller/SockeioController.js
 const { Server } = require('socket.io');
 const cors = require("cors");
