@@ -754,7 +754,16 @@ const handleEndNow = async () => {
   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
 >
   <Video size={13} />
-  Start Video
+  Start Video 
+</button>
+
+
+        <button
+  onClick={() => navigate(`/videocall/p2p/${joinid}`)}
+  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
+>
+  <Video size={13} />
+  Start Video p2p(max 2 size)
 </button>
 
       </div>

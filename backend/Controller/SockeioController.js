@@ -146,7 +146,67 @@ module.exports.SocketController = (server) => {
         removeSocketFromRoom(socket.id, joinid);
         broadcastOnlineUsers(joinid);
       });
+
+        // ✅ add this — notify webrtc peer on any disconnect, not just explicit leave
+  if (socket.data.webrtcRoom) {
+    socket.to(socket.data.webrtcRoom).emit("webrtc-peer-left", {
+      fromSocketId: socket.id
     });
+  }
+
+  
+    });
+
+
+    // WebRTC Signaling Events
+// These just relay messages between two peers in the same room
+// Backend never touches the actual media — just passes SDP and ICE candidates
+
+socket.on("webrtc-offer", ({ offer, joinid, targetSocketId }) => {
+  // Relay offer from caller to the specific target peer
+  console.log(`WebRTC offer from ${socket.id} to ${targetSocketId}`);
+  socket.to(targetSocketId).emit("webrtc-offer", {
+    offer,
+    fromSocketId: socket.id,
+    joinid
+  });
+});
+
+socket.on("webrtc-answer", ({ answer, targetSocketId }) => {
+  // Relay answer back to the caller
+  console.log(`WebRTC answer from ${socket.id} to ${targetSocketId}`);
+  socket.to(targetSocketId).emit("webrtc-answer", {
+    answer,
+    fromSocketId: socket.id
+  });
+});
+
+socket.on("webrtc-ice-candidate", ({ candidate, targetSocketId }) => {
+  // Relay ICE candidates between peers
+  socket.to(targetSocketId).emit("webrtc-ice-candidate", {
+    candidate,
+    fromSocketId: socket.id
+  });
+});
+
+socket.on("webrtc-join-room", ({ joinid, displayname }) => {
+  // Notify existing users in room that a new peer wants to connect
+  // They will initiate the offer
+   socket.join(joinid); // ✅ add this
+  socket.data.webrtcRoom = joinid; // track for cleanup below
+ 
+  console.log(`${displayname} joining WebRTC room ${joinid}`);
+  socket.to(joinid).emit("webrtc-new-peer", {
+    fromSocketId: socket.id,
+    displayname
+  });
+});
+
+socket.on("webrtc-leave", ({ joinid }) => {
+  socket.to(joinid).emit("webrtc-peer-left", {
+    fromSocketId: socket.id
+  });
+});
 
   });
 

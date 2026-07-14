@@ -24,7 +24,7 @@ import SeeAllPostsUser from './post/seespecificpost';
 import ShowmyConnections from './connections/showmyconnections';
 import Showincomingrequest from './connections/incomingrequests';
 import VideoCall from './Video/VideoCall';
-
+import VideoCallp2p from "./Video/VideoCallp2p"
 // Routes where sidebar should NOT appear
 const NO_SIDEBAR_ROUTES = ['/', '/landingpage', '/login', '/signup'];
 
@@ -194,6 +194,14 @@ export default function Home() {
   element={
     <ProtectedRoute>
       <VideoCall />
+    </ProtectedRoute>
+  }
+/>
+        <Route
+  path="/videocall/p2p/:joinid"
+  element={
+    <ProtectedRoute>
+      <VideoCallp2p />
     </ProtectedRoute>
   }
 />

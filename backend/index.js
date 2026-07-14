@@ -29,7 +29,7 @@ const port=process.env.PORT || 8080;
 const dburl=process.env.ATLAS_URL;
 
 app.use(cors({
-    origin:process.env.CLIENT_URL ||  "http://localhost:5173",
+    origin: "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
     credentials: true,
 }));
@@ -50,15 +50,15 @@ main()
 .catch((err) => console.log(err));
 
 //   // connecting the mongo db with the localhost
-// async function main() {
-// await mongoose.connect("mongodb://localhost:27017/Zoom");
-// }
+async function main() {
+await mongoose.connect("mongodb://localhost:27017/Zoom");
+}
 
 
 // // connecting the mongo database with the mongoatlas cloud servive
-async function main() {
-  await mongoose.connect(dburl);
-}
+// async function main() {
+//   await mongoose.connect(dburl);
+// }
 
 server.listen(port, () => {
 console.log(`server running at ${port}`);
