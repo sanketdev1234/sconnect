@@ -72,7 +72,7 @@ module.exports.edit_chat=async(req,res)=>{
         res.send(err);
     }
 
-res.send("edit chat");
+
 }
 module.exports.delete_chat=async(req,res)=>{
     try{

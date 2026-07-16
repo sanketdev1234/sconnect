@@ -3,6 +3,7 @@ const meeting=require("../model/meeting");
 const user=require("../model/user")
 const chat=require("../model/chat");
 const mongoose=require("mongoose");
+const { summarizeMeeting } = require("../Utilities/aiSummarizer");
 
 
 module.exports.getallmeeting=async(req,res)=>{
@@ -131,8 +132,82 @@ module.exports.endmeetingnow = async (req, res) => {
             meeting: ended_meet,
             status: true
         });
+
+        // Generate AI summary in background (non-blocking — response already sent)
+        const populated = await meeting.findById(meetid).populate({
+            path: "Chats",
+            populate: { path: "Author", select: "display_name" },
+        });
+        if (populated && populated.Chats.length > 0) {
+            summarizeMeeting(populated.Chats)
+                .then(async (result) => {
+                    populated.summary = {
+                        text: result.summary,
+                        messageCount: result.messageCount,
+                        generatedAt: result.generatedAt,
+                    };
+                    await populated.save();
+                    console.log("[AI] Summary generated for meeting:", meetid);
+                })
+                .catch((err) => console.error("[AI] Background summary failed:", err.message));
+        }
     } catch (err) {
         console.log(err);
         res.send(err);
+    }
+};
+
+// ─── AI Meeting Summary Endpoints ─────────────────────────────────────────────
+
+// GET /meeting/:meetid/summary — Fetch stored summary
+module.exports.getMeetingSummary = async (req, res) => {
+    try {
+        const meetid = req.params.meetid;
+        const curr_meet = await meeting.findById(meetid);
+        if (!curr_meet) {
+            return res.status(404).send("Meeting not found");
+        }
+        res.status(200).json({
+            summary: curr_meet.summary?.text || null,
+            messageCount: curr_meet.summary?.messageCount || 0,
+            generatedAt: curr_meet.summary?.generatedAt || null,
+            isEnded: curr_meet.isEnded,
+        });
+    } catch (err) {
+        console.log(err);
+        res.status(500).send("Failed to fetch summary");
+    }
+};
+
+// POST /meeting/:meetid/summary/generate — Generate (or regenerate) AI summary on demand
+module.exports.generateMeetingSummary = async (req, res) => {
+    try {
+        const meetid = req.params.meetid;
+        const curr_meet = await meeting.findById(meetid).populate({
+            path: "Chats",
+            populate: { path: "Author", select: "display_name" },
+        });
+        if (!curr_meet) {
+            return res.status(404).send("Meeting not found");
+        }
+
+        const result = await summarizeMeeting(curr_meet.Chats);
+
+        curr_meet.summary = {
+            text: result.summary,
+            messageCount: result.messageCount,
+            generatedAt: result.generatedAt,
+        };
+        await curr_meet.save();
+
+        res.status(200).json({
+            message: "Summary generated successfully",
+            summary: result.summary,
+            messageCount: result.messageCount,
+            generatedAt: result.generatedAt,
+        });
+    } catch (err) {
+        console.log(err);
+        res.status(500).send("Failed to generate summary");
     }
 };

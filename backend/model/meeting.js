@@ -33,6 +33,11 @@ const meetingSchema=new Schema({
     isEnded:{
         type:Boolean,
         default:false
+    },
+    summary:{
+        text: { type: String, default: null },
+        messageCount: { type: Number, default: 0 },
+        generatedAt: { type: Date, default: null },
     }
 
 });
@@ -41,7 +46,7 @@ meetingSchema.post("findOneAndDelete",async(deleted_meet)=>{
 console.log("this is post deletion for meeting schema");
 console.log("deleted meet is ",deleted_meet);
 if(deleted_meet.Chats.length > 0){
-    const deleted_chat = await chat.deleteMany({_id:{$in:deleted_meet}});
+    const deleted_chat = await chat.deleteMany({_id:{$in:deleted_meet.Chats}});
     console.log("deleted chats are ",deleted_chat);
 }
 })

@@ -9,7 +9,7 @@ import {
   ArrowLeft, Video, Hash, Calendar, Clock,
   Users, MessageSquare, Trash2, LogIn,
   AlertCircle, RefreshCw, Loader2, Copy, Check,
-  User
+  User, Sparkles
 } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -46,6 +46,8 @@ export default function ShowMeetDetail() {
   const [fetchError, setFetchError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   // Backend: GET /meeting/:meetid/detail
   // Middleware: iscorrect_owner — only host can view details
@@ -87,6 +89,35 @@ export default function ShowMeetDetail() {
   useEffect(() => {
     if (id) fetchDetail();
   }, [id]);
+
+  // Auto-fetch AI summary for ended meetings
+  useEffect(() => {
+    if (meeting?._id && meeting?.isEnded) {
+      axios.get(`/meeting/${id}/summary`, { withCredentials: true })
+        .then(res => {
+          if (res.data?.summary) setSummary(res.data);
+        })
+        .catch(() => {});
+    }
+  }, [meeting?._id, meeting?.isEnded]);
+
+  // Generate (or regenerate) AI summary on demand
+  const handleGenerateSummary = async () => {
+    setSummaryLoading(true);
+    try {
+      const res = await axios.post(
+        `/meeting/${id}/summary/generate`,
+        {},
+        { withCredentials: true }
+      );
+      setSummary(res.data);
+      toast.success('AI summary generated!');
+    } catch (err) {
+      toast.error('Failed to generate summary. Try again.');
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
 
   // Backend: DELETE /meeting/:meetid/delete
   // Middleware: iscorrect_owner (403 if not host)
@@ -411,6 +442,68 @@ export default function ShowMeetDetail() {
             )}
           </div>
         </div>
+
+        {/* ── AI Meeting Summary Card ── */}
+        {meeting.isEnded && (
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+                  <Sparkles size={14} className="text-white" />
+                </div>
+                <h2 className="text-sm font-bold text-gray-900">AI Meeting Summary</h2>
+              </div>
+              {summary?.messageCount > 0 && (
+                <span className="text-xs text-gray-400">
+                  {summary.messageCount} messages analyzed
+                </span>
+              )}
+            </div>
+
+            <div className="p-5">
+              {summaryLoading ? (
+                <div className="flex flex-col items-center py-6">
+                  <Loader2 size={24} className="text-purple-500 animate-spin mb-3" />
+                  <p className="text-sm text-gray-500">Generating AI summary...</p>
+                  <p className="text-xs text-gray-400 mt-1">This may take a moment on first run</p>
+                </div>
+              ) : summary?.summary ? (
+                <div>
+                  <p className="text-sm text-gray-700 leading-relaxed">{summary.summary}</p>
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                    <p className="text-xs text-gray-400">
+                      Generated {new Date(summary.generatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </p>
+                    <button
+                      onClick={handleGenerateSummary}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors"
+                    >
+                      <RefreshCw size={12} />
+                      Regenerate
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-400 mb-3">
+                    {meeting.Chats?.length > 0
+                      ? 'No summary generated yet for this meeting.'
+                      : 'No messages were exchanged in this meeting.'}
+                  </p>
+                  {isHost && meeting.Chats?.length > 0 && (
+                    <button
+                      onClick={handleGenerateSummary}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-sm"
+                    >
+                      <Sparkles size={14} />
+                      Generate AI Summary
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Action Buttons ── */}
         <div className="flex flex-col sm:flex-row gap-3">
