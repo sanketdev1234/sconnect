@@ -8,7 +8,7 @@
 const isProduction = process.env.NODE_ENV === "production";
 const HF_API_TOKEN = process.env.HF_API_TOKEN || "";
 const HF_SUMMARIZATION_URL =
-  "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-6-6";
+  "https://router.huggingface.co/hf-inference/models/sshleifer/distilbart-cnn-6-6";
 
 // ─── Local pipeline (Development only) ─────────────────────────────────────
 let summarizer = null;
