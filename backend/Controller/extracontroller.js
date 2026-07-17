@@ -121,23 +121,47 @@ module.exports.embedAllProfiles = async (req, res) => {
   }
 };
 
-// ─── Connection Suggestions (Fixed) ─────────────────────────────────────────
-// Uses embedding similarity to find people similar to the current user.
-// Falls back to structured matching if no embedding exists.
+// ─── AI Connection Recommendations (Multi-Signal + Embeddings) ──────────────
+// Combines 5 scoring signals to recommend connections:
+//   1. Mutual connections (graph analysis)     → weight: 0.30
+//   2. Same company (current/past)             → weight: 0.25
+//   3. Same school/university                  → weight: 0.20
+//   4. Same location                           → weight: 0.10
+//   5. Profile embedding similarity (AI)       → weight: 0.15
+// Each recommendation includes human-readable "reasons" explaining WHY.
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Signal weights — tunable for experimentation
+const WEIGHTS = {
+  mutualConnections: 0.30,
+  sameCompany: 0.25,
+  sameSchool: 0.20,
+  sameLocation: 0.10,
+  profileSimilarity: 0.15,
+};
+
 module.exports.suggestions = async (req, res) => {
   const userid = req.user._id;
   try {
-    // 1. Get IDs to exclude (already connected + self)
-    const excluded_connections = await connection.find({
+    // ── Step 1: Get all connections involving the current user ──────────────
+    const allUserConnections = await connection.find({
       $or: [{ sender: userid }, { receiver: userid }],
     });
-    const excludedIds = excluded_connections.map((conn) =>
+
+    // IDs of people already connected (any status) — to exclude from suggestions
+    const excludedIds = allUserConnections.map((conn) =>
       conn.sender.toString() === userid.toString() ? conn.receiver : conn.sender
     );
     excludedIds.push(userid);
 
-    // 2. Get current user's profile with embedding
+    // IDs of ACCEPTED connections only — needed for mutual connection analysis
+    const acceptedFriendIds = allUserConnections
+      .filter((conn) => conn.status === "accepted")
+      .map((conn) =>
+        conn.sender.toString() === userid.toString() ? conn.receiver : conn.sender
+      );
+
+    // ── Step 2: Get current user's profile ──────────────────────────────────
     const user_profile = await profile
       .findOne({ owner: userid })
       .select("+embedding")
@@ -145,12 +169,17 @@ module.exports.suggestions = async (req, res) => {
 
     if (!user_profile) {
       return res.status(400).json({
-        message: "Create a profile first to get suggestions",
+        message: "Create a profile first to get recommendations",
         suggestions: [],
       });
     }
 
-    // 3. Get candidate profiles (not connected, not self)
+    // Extract user's structured data for matching
+    const userSchools = (user_profile.Education || []).map((e) => e.school?.toLowerCase()).filter(Boolean);
+    const userCompanies = (user_profile.Experience || []).map((e) => e.company?.toLowerCase()).filter(Boolean);
+    const userLocation = user_profile.location?.toLowerCase() || "";
+
+    // ── Step 3: Get candidate profiles ──────────────────────────────────────
     const candidates = await profile
       .find({ owner: { $nin: excludedIds } })
       .select("+embedding")
@@ -158,38 +187,146 @@ module.exports.suggestions = async (req, res) => {
 
     if (!candidates || candidates.length === 0) {
       return res.status(200).json({
-        message: "No suggestions available right now",
+        message: "No recommendations available right now",
         suggestions: [],
       });
     }
 
-    // 4. Score candidates using embedding similarity
-    let scored;
-    if (user_profile.embedding && user_profile.embedding.length > 0) {
-      scored = candidates
-        .map((c) => {
-          const similarity =
-            c.embedding && c.embedding.length > 0
-              ? cosineSimilarity(user_profile.embedding, c.embedding)
-              : 0;
-          const profileObj = c.toObject();
-          delete profileObj.embedding;
-          return { ...profileObj, similarityScore: Math.round(similarity * 100) / 100 };
-        })
-        .sort((a, b) => b.similarityScore - a.similarityScore)
-        .slice(0, 10); // Top 10
-    } else {
-      // No embedding — return candidates without scoring
-      scored = candidates.slice(0, 10).map((c) => {
-        const profileObj = c.toObject();
-        delete profileObj.embedding;
-        return { ...profileObj, similarityScore: null };
-      });
+    // ── Step 4: Get mutual connection data (batch) ──────────────────────────
+    // For each candidate, find how many of MY friends are also THEIR friends
+    const candidateOwnerIds = candidates.map((c) => c.owner._id || c.owner);
+
+    // Fetch all connections of all candidates in ONE query (efficient)
+    const candidateConnections = await connection.find({
+      status: "accepted",
+      $or: [
+        { sender: { $in: candidateOwnerIds } },
+        { receiver: { $in: candidateOwnerIds } },
+      ],
+    });
+
+    // Build a map: candidateOwnerId → Set of their friend IDs
+    const candidateFriendsMap = {};
+    for (const conn of candidateConnections) {
+      const s = conn.sender.toString();
+      const r = conn.receiver.toString();
+      if (!candidateFriendsMap[s]) candidateFriendsMap[s] = new Set();
+      if (!candidateFriendsMap[r]) candidateFriendsMap[r] = new Set();
+      candidateFriendsMap[s].add(r);
+      candidateFriendsMap[r].add(s);
     }
 
+    // ── Step 5: Score each candidate ────────────────────────────────────────
+    const scored = candidates.map((candidate) => {
+      const candidateOwnerId = (candidate.owner._id || candidate.owner).toString();
+      const reasons = []; // Human-readable reasons for this recommendation
+      const signals = {}; // Raw signal scores for transparency
+
+      // ── Signal 1: Mutual Connections (weight: 0.30) ──
+      const candidateFriends = candidateFriendsMap[candidateOwnerId] || new Set();
+      const mutualFriendIds = acceptedFriendIds.filter((fid) =>
+        candidateFriends.has(fid.toString())
+      );
+      const mutualCount = mutualFriendIds.length;
+      // Normalize: cap at 10 mutual connections = max score
+      const mutualScore = Math.min(mutualCount / 5, 1);
+      signals.mutualConnections = { count: mutualCount, score: mutualScore };
+
+      if (mutualCount > 0) {
+        reasons.push(`${mutualCount} mutual connection${mutualCount > 1 ? "s" : ""}`);
+      }
+
+      // ── Signal 2: Same Company (weight: 0.25) ──
+      const candidateCompanies = (candidate.Experience || [])
+        .map((e) => e.company?.toLowerCase())
+        .filter(Boolean);
+      const sharedCompanies = userCompanies.filter((uc) =>
+        candidateCompanies.some((cc) => cc.includes(uc) || uc.includes(cc))
+      );
+      const companyScore = sharedCompanies.length > 0 ? 1 : 0;
+      signals.sameCompany = { matches: sharedCompanies, score: companyScore };
+
+      if (sharedCompanies.length > 0) {
+        // Capitalize for display
+        const displayName = sharedCompanies[0].charAt(0).toUpperCase() + sharedCompanies[0].slice(1);
+        reasons.push(`Both worked at ${displayName}`);
+      }
+
+      // ── Signal 3: Same School (weight: 0.20) ──
+      const candidateSchools = (candidate.Education || [])
+        .map((e) => e.school?.toLowerCase())
+        .filter(Boolean);
+      const sharedSchools = userSchools.filter((us) =>
+        candidateSchools.some((cs) => cs.includes(us) || us.includes(cs))
+      );
+      const schoolScore = sharedSchools.length > 0 ? 1 : 0;
+      signals.sameSchool = { matches: sharedSchools, score: schoolScore };
+
+      if (sharedSchools.length > 0) {
+        const displayName = sharedSchools[0].charAt(0).toUpperCase() + sharedSchools[0].slice(1);
+        reasons.push(`Both studied at ${displayName}`);
+      }
+
+      // ── Signal 4: Same Location (weight: 0.10) ──
+      const candidateLocation = candidate.location?.toLowerCase() || "";
+      const locationMatch =
+        userLocation &&
+        candidateLocation &&
+        (candidateLocation.includes(userLocation) || userLocation.includes(candidateLocation));
+      const locationScore = locationMatch ? 1 : 0;
+      signals.sameLocation = { match: locationMatch, score: locationScore };
+
+      if (locationMatch) {
+        reasons.push(`Both in ${candidate.location}`);
+      }
+
+      // ── Signal 5: Profile Embedding Similarity (weight: 0.15) ──
+      let embeddingSimilarity = 0;
+      if (
+        user_profile.embedding &&
+        user_profile.embedding.length > 0 &&
+        candidate.embedding &&
+        candidate.embedding.length > 0
+      ) {
+        embeddingSimilarity = cosineSimilarity(user_profile.embedding, candidate.embedding);
+      }
+      signals.profileSimilarity = { score: Math.round(embeddingSimilarity * 100) / 100 };
+
+      if (embeddingSimilarity > 0.4) {
+        reasons.push("Similar professional profile");
+      }
+
+      // ── Compute final weighted score ──
+      const finalScore =
+        WEIGHTS.mutualConnections * mutualScore +
+        WEIGHTS.sameCompany * companyScore +
+        WEIGHTS.sameSchool * schoolScore +
+        WEIGHTS.sameLocation * locationScore +
+        WEIGHTS.profileSimilarity * embeddingSimilarity;
+
+      // Build clean output object (strip embedding array)
+      const profileObj = candidate.toObject();
+      delete profileObj.embedding;
+
+      return {
+        ...profileObj,
+        recommendationScore: Math.round(finalScore * 100) / 100,
+        reasons,
+        signals,
+      };
+    });
+
+    // Sort by recommendation score (highest first) and take top 15
+    const topRecommendations = scored
+      .sort((a, b) => b.recommendationScore - a.recommendationScore)
+      .filter((s) => s.recommendationScore > 0 || s.reasons.length > 0)
+      .slice(0, 15);
+
     res.status(200).json({
-      message: "Suggestions fetched",
-      suggestions: scored,
+      message: "Recommendations generated",
+      suggestions: topRecommendations,
+      totalCandidates: candidates.length,
+      weights: WEIGHTS,
       status: true,
     });
   } catch (error) {
@@ -197,6 +334,7 @@ module.exports.suggestions = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
+
 
 
 module.exports.get_personalized_feed = async (req, res) => {

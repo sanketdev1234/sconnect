@@ -8,7 +8,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import {
   LayoutDashboard, Rss, Users, BellRing, PenSquare,
   Video, LogIn, UserCircle, UserPlus, UserCog,
-  LogOut, ChevronRight, Menu, X, Download, Search
+  LogOut, ChevronRight, Menu, X, Download, Search, Brain
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -101,6 +101,7 @@ export default function Sidebar() {
       group: 'Network',
       items: [
         { path: '/search', label: 'Search People', icon: Search },
+        { path: '/recommendations', label: 'People You May Know', icon: Brain },
         { path: '/myconnections', label: 'My Connections', icon: Users },
         { path: '/incomingrequests', label: 'Requests', icon: BellRing },
       ]
