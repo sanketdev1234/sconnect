@@ -1,23 +1,23 @@
 // Utilities/aiEmbeddings.js
 // ─── Semantic Embedding Generator ───────────────────────────────────────────
-// Uses Transformers.js to run all-MiniLM-L6-v2 locally (no API calls, no cost).
-// Model: Xenova/all-MiniLM-L6-v2 (~80MB, downloaded & cached on first use)
-// Produces 384-dimensional dense vectors for semantic similarity search.
+// Production: Uses Hugging Face Inference API (free, 1000 req/day)
+// Development: Uses Transformers.js local pipeline (runs on your machine)
+// Model: all-MiniLM-L6-v2 (384-dim sentence embeddings, same model both modes)
 // ─────────────────────────────────────────────────────────────────────────────
 
+const isProduction = process.env.NODE_ENV === "production";
+const HF_API_TOKEN = process.env.HF_API_TOKEN || "";
+const HF_EMBEDDING_URL =
+  "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2";
+
+// ─── Local pipeline (Development only) ─────────────────────────────────────
 let embedder = null;
 let isLoading = false;
 
-/**
- * Lazy-load the feature-extraction (embedding) pipeline (singleton pattern).
- * First call downloads + loads the model (~10s), subsequent calls are instant.
- * Runs 100% locally via ONNX Runtime — zero API calls.
- */
-async function getEmbedder() {
+async function getLocalEmbedder() {
   if (embedder) return embedder;
 
   if (isLoading) {
-    // Another call is already loading — wait for it to finish
     while (isLoading) {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
@@ -27,24 +27,90 @@ async function getEmbedder() {
   isLoading = true;
   try {
     const { pipeline } = await import("@huggingface/transformers");
-    console.log("[AI] Loading embedding model (first time takes ~10s)...");
+    console.log("[AI] Loading local embedding model (first time takes ~10s)...");
     embedder = await pipeline(
       "feature-extraction",
       "Xenova/all-MiniLM-L6-v2"
     );
-    console.log("[AI] Embedding model loaded successfully!");
+    console.log("[AI] Local embedding model loaded successfully!");
     return embedder;
   } catch (err) {
-    console.error("[AI] Failed to load embedding model:", err.message);
+    console.error("[AI] Failed to load local embedding model:", err.message);
     throw err;
   } finally {
     isLoading = false;
   }
 }
 
+// ─── HF Inference API (Production) ─────────────────────────────────────────
+async function embedViaAPI(text) {
+  const response = await fetch(HF_EMBEDDING_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${HF_API_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      inputs: text,
+      options: { wait_for_model: true },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`HF API error (${response.status}): ${errorBody}`);
+  }
+
+  const result = await response.json();
+
+  // HF returns token-level embeddings: [[token1_384d], [token2_384d], ...]
+  // We need to mean-pool them into a single 384-dim vector
+  if (Array.isArray(result) && Array.isArray(result[0])) {
+    // If result is 2D array (tokens × dims), mean pool across tokens
+    if (Array.isArray(result[0][0])) {
+      // Shape: [1, num_tokens, 384] — squeeze first dim, then mean pool
+      const tokens = result[0];
+      const dims = tokens[0].length;
+      const meanVec = new Array(dims).fill(0);
+      for (const token of tokens) {
+        for (let i = 0; i < dims; i++) {
+          meanVec[i] += token[i];
+        }
+      }
+      for (let i = 0; i < dims; i++) {
+        meanVec[i] /= tokens.length;
+      }
+      // L2 normalize
+      const norm = Math.sqrt(meanVec.reduce((sum, v) => sum + v * v, 0));
+      if (norm > 0) {
+        for (let i = 0; i < dims; i++) {
+          meanVec[i] /= norm;
+        }
+      }
+      return meanVec;
+    }
+    // Shape: [384] — already a single vector (sentence-transformers pipeline)
+    return result[0];
+  }
+
+  throw new Error("Unexpected HF API embedding response format");
+}
+
+// ─── Local embedding (Development) ──────────────────────────────────────────
+async function embedLocally(text) {
+  const model = await getLocalEmbedder();
+  const output = await model(text, {
+    pooling: "mean",
+    normalize: true,
+  });
+  return Array.from(output.data);
+}
+
+// ─── Main function ──────────────────────────────────────────────────────────
+
 /**
  * Generate a 384-dimensional embedding vector for the given text.
- * Uses mean pooling + L2 normalization (standard for sentence-transformers).
+ * Production → HF Inference API | Development → local Transformers.js
  *
  * @param {string} text - The text to embed
  * @returns {number[]} 384-dimensional float array
@@ -55,14 +121,14 @@ async function generateEmbedding(text) {
   }
 
   try {
-    const model = await getEmbedder();
-    const output = await model(text, {
-      pooling: "mean",
-      normalize: true,
-    });
-
-    // output.data is a Float32Array — convert to plain Array for MongoDB storage
-    return Array.from(output.data);
+    if (isProduction) {
+      console.log("[AI] Generating embedding via HF Inference API...");
+      const embedding = await embedViaAPI(text);
+      return embedding;
+    } else {
+      const embedding = await embedLocally(text);
+      return embedding;
+    }
   } catch (err) {
     console.error("[AI] Embedding generation failed:", err.message);
     return null;
@@ -139,5 +205,5 @@ module.exports = {
   generateEmbedding,
   buildProfileText,
   cosineSimilarity,
-  getEmbedder,
+  getEmbedder: getLocalEmbedder,
 };

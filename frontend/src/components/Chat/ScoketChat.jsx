@@ -21,6 +21,7 @@ const url = import.meta.env.VITE_SOCKET_URL || 'http://localhost:8080';
 const socket = io(url, {
   withCredentials: true,
   autoConnect: true,
+  transports: ["polling", "websocket"],  // Start with polling, upgrade to WS
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

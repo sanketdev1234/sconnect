@@ -17,11 +17,13 @@ let ioInstance = null;
 module.exports.SocketController = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: [process.env.CLIENT_URL || "http://localhost:5173"],
+      origin: [process.env.FRONTEND_URL  || "http://localhost:5173"],
       credentials: true,
       methods: ["GET", "POST", "PATCH", "PUT", "DELETE"]
     },
-    connectionStateRecovery: {}  // browser close karke rejoin kiya within 2 min toh sare char preserve rahege and rejoin hojauga and same socket id ke sath , agar refresh kiya toh sare reload hoga chat preserve nahi rahege and new socketid se join hoega
+    transports: ["polling", "websocket"],  // Explicit transports for Render proxy
+    allowEIO3: true,                       // Compatibility with older clients
+    connectionStateRecovery: {}
   });
   ioInstance = io;
 

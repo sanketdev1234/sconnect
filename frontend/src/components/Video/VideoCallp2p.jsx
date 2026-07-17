@@ -128,7 +128,8 @@ export default function VideoCallp2p() {
         // Step 2: Connect socket for signaling (not for media)
         const socket = io(SOCKET_URL, {
           withCredentials: true,
-          autoConnect: true
+          autoConnect: true,
+          transports: ["polling", "websocket"],  // Start with polling, upgrade to WS
         });
         socketRef.current = socket;
 

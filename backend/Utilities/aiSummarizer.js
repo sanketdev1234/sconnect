@@ -1,22 +1,23 @@
 // Utilities/aiSummarizer.js
 // ─── AI Meeting Summarizer ──────────────────────────────────────────────────
-// Uses Transformers.js to run DistilBART locally (no API calls, no cost).
-// Model: Xenova/distilbart-cnn-6-6 (~300MB, downloaded & cached on first use)
+// Production: Uses Hugging Face Inference API (free, 1000 req/day)
+// Development: Uses Transformers.js local pipeline (runs on your machine)
+// Model: distilbart-cnn-6-6 (same model, both modes)
 // ─────────────────────────────────────────────────────────────────────────────
 
+const isProduction = process.env.NODE_ENV === "production";
+const HF_API_TOKEN = process.env.HF_API_TOKEN || "";
+const HF_SUMMARIZATION_URL =
+  "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-6-6";
+
+// ─── Local pipeline (Development only) ─────────────────────────────────────
 let summarizer = null;
 let isLoading = false;
 
-/**
- * Lazy-load the summarization pipeline (singleton pattern).
- * First call downloads + loads the model (~20s), subsequent calls are instant.
- * The model runs 100% locally via ONNX Runtime — zero API calls.
- */
-async function getSummarizer() {
+async function getLocalSummarizer() {
   if (summarizer) return summarizer;
 
   if (isLoading) {
-    // Another call is already loading — wait for it to finish
     while (isLoading) {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
@@ -25,22 +26,68 @@ async function getSummarizer() {
 
   isLoading = true;
   try {
-    // Dynamic import because @huggingface/transformers is ESM-only
     const { pipeline } = await import("@huggingface/transformers");
-    console.log("[AI] Loading summarization model (first time takes ~20s)...");
+    console.log("[AI] Loading local summarization model (first time takes ~20s)...");
     summarizer = await pipeline("summarization", "Xenova/distilbart-cnn-6-6");
-    console.log("[AI] Summarization model loaded successfully!");
+    console.log("[AI] Local summarization model loaded successfully!");
     return summarizer;
   } catch (err) {
-    console.error("[AI] Failed to load summarization model:", err.message);
+    console.error("[AI] Failed to load local summarization model:", err.message);
     throw err;
   } finally {
     isLoading = false;
   }
 }
 
+// ─── HF Inference API (Production) ─────────────────────────────────────────
+async function summarizeViaAPI(text) {
+  const response = await fetch(HF_SUMMARIZATION_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${HF_API_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      inputs: text,
+      parameters: {
+        max_length: 150,
+        min_length: 30,
+        do_sample: false,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`HF API error (${response.status}): ${errorBody}`);
+  }
+
+  const result = await response.json();
+
+  // HF API returns: [{ summary_text: "..." }]
+  if (Array.isArray(result) && result[0]?.summary_text) {
+    return result[0].summary_text;
+  }
+
+  throw new Error("Unexpected HF API response format");
+}
+
+// ─── Local pipeline inference (Development) ─────────────────────────────────
+async function summarizeLocally(text) {
+  const model = await getLocalSummarizer();
+  const result = await model(text, {
+    max_length: 150,
+    min_length: 30,
+    do_sample: false,
+  });
+  return result[0].summary_text;
+}
+
+// ─── Main function ──────────────────────────────────────────────────────────
+
 /**
- * Summarize meeting chat messages using the DistilBART transformer model.
+ * Summarize meeting chat messages.
+ * Production → HF Inference API | Development → local Transformers.js
  *
  * @param {Array} chats - Array of populated chat objects ({ Author: { display_name }, Content })
  * @returns {Object} { summary: string, messageCount: number, generatedAt: Date }
@@ -76,15 +123,20 @@ async function summarizeMeeting(chats) {
     chatText.length > 3000 ? chatText.slice(0, 3000) + "..." : chatText;
 
   try {
-    const model = await getSummarizer();
-    const result = await model(truncated, {
-      max_length: 150,
-      min_length: 30,
-      do_sample: false,
-    });
+    let summaryText;
+
+    if (isProduction) {
+      console.log("[AI] Summarizing via HF Inference API...");
+      summaryText = await summarizeViaAPI(truncated);
+      console.log("[AI] HF API summarization complete.");
+    } else {
+      console.log("[AI] Summarizing via local Transformers.js pipeline...");
+      summaryText = await summarizeLocally(truncated);
+      console.log("[AI] Local summarization complete.");
+    }
 
     return {
-      summary: result[0].summary_text,
+      summary: summaryText,
       messageCount: chats.length,
       generatedAt: new Date(),
     };
@@ -99,4 +151,4 @@ async function summarizeMeeting(chats) {
   }
 }
 
-module.exports = { summarizeMeeting, getSummarizer };
+module.exports = { summarizeMeeting, getSummarizer: getLocalSummarizer };
