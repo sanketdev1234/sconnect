@@ -2,6 +2,7 @@ const profile=require("../model/profile");
 const user = require("../model/user");
 const validators=require("../Utilities/JoiValidators");
 const PDFDocument = require('pdfkit');
+const { generateEmbedding, buildProfileText } = require("../Utilities/aiEmbeddings");
 
 module.exports.getProfile=async(req,res)=>{
 const userid=req.params.userId;
@@ -63,6 +64,20 @@ module.exports.createProfile=async(req,res)=>{
         message:"profile created",
         data:created_profile_new
     })
+
+    // Generate AI embedding in background (non-blocking)
+    const ownerDoc = await user.findById(current_user_id);
+    const profileText = buildProfileText(created_profile_new, ownerDoc);
+    generateEmbedding(profileText)
+        .then(async (embeddingVector) => {
+            if (embeddingVector) {
+                created_profile_new.embedding = embeddingVector;
+                await created_profile_new.save();
+                console.log("[AI] Embedding generated for new profile:", created_profile_new._id);
+            }
+        })
+        .catch((err) => console.error("[AI] Embedding generation failed:", err.message));
+
     }
     catch(err){
         console.log("err:",err);
@@ -95,6 +110,21 @@ module.exports.updateProfile=async(req,res)=>{
             newprofile:updated_profile,
             status:true
         });
+
+        // Regenerate AI embedding in background after profile update
+        if (updated_profile) {
+            const ownerDoc = await user.findById(req.user._id);
+            const profileText = buildProfileText(updated_profile, ownerDoc);
+            generateEmbedding(profileText)
+                .then(async (embeddingVector) => {
+                    if (embeddingVector) {
+                        await profile.findByIdAndUpdate(profileid, { embedding: embeddingVector });
+                        console.log("[AI] Embedding regenerated for profile:", profileid);
+                    }
+                })
+                .catch((err) => console.error("[AI] Embedding regen failed:", err.message));
+        }
+
        }
 
        catch(err){

@@ -1,56 +1,202 @@
 const profile=require("../model/profile");
 const connection=require("../model/connections");
-const post=require("../model/post")
+const post=require("../model/post");
+const { generateEmbedding, buildProfileText, cosineSimilarity } = require("../Utilities/aiEmbeddings");
+
+// ─── Semantic People Search ─────────────────────────────────────────────────
+// Uses all-MiniLM-L6-v2 sentence-transformer embeddings for semantic matching.
+// Falls back to regex search for profiles that don't have embeddings yet.
+// ─────────────────────────────────────────────────────────────────────────────
 module.exports.search_by_profile = async (req, res) => {
   const { query } = req.query;
-  try {
-    const require_profile = await profile.find({
-      $or: [
-        { headline: { $regex: query, $options: "i" } },
-        { bio: { $regex: query, $options: "i" } },
-        { location: { $regex: query, $options: "i" } }
-      ]
-    }).populate("owner");
 
-    res.status(200).json({ results: require_profile, status: true });  // ✅ JSON
+  if (!query || !query.trim()) {
+    return res.status(400).json({ results: [], message: "Search query is required" });
+  }
+
+  try {
+    // 1. Generate embedding for the search query
+    const queryEmbedding = await generateEmbedding(query);
+
+    // 2. Fetch all profiles that HAVE embeddings (for semantic search)
+    //    select('+embedding') overrides the `select: false` in schema
+    const profilesWithEmbeddings = await profile
+      .find({ embedding: { $ne: null, $exists: true, $not: { $size: 0 } } })
+      .select("+embedding")
+      .populate("owner");
+
+    // 3. Fetch profiles WITHOUT embeddings (for regex fallback)
+    const profilesWithoutEmbeddings = await profile
+      .find({ $or: [{ embedding: null }, { embedding: { $exists: false } }, { embedding: { $size: 0 } }] })
+      .populate("owner");
+
+    let results = [];
+
+    // 4. Semantic search — cosine similarity ranking
+    if (queryEmbedding && profilesWithEmbeddings.length > 0) {
+      const scored = profilesWithEmbeddings.map((p) => {
+        const similarity = cosineSimilarity(queryEmbedding, p.embedding);
+        // Convert to a plain object so we can add the score
+        const profileObj = p.toObject();
+        delete profileObj.embedding; // Don't send the 384-dim array to frontend
+        return {
+          ...profileObj,
+          similarityScore: Math.round(similarity * 100) / 100, // 2 decimal places
+          searchMethod: "semantic",
+        };
+      });
+
+      // Filter: only include results with similarity > 0.15 (weak threshold)
+      results = scored
+        .filter((p) => p.similarityScore > 0.15)
+        .sort((a, b) => b.similarityScore - a.similarityScore);
+    }
+
+    // 5. Regex fallback — for profiles without embeddings
+    if (profilesWithoutEmbeddings.length > 0) {
+      const regex = new RegExp(query, "i");
+      const regexMatches = profilesWithoutEmbeddings
+        .filter(
+          (p) =>
+            regex.test(p.headline || "") ||
+            regex.test(p.bio || "") ||
+            regex.test(p.location || "")
+        )
+        .map((p) => ({
+          ...p.toObject(),
+          similarityScore: null,
+          searchMethod: "keyword",
+        }));
+
+      results = [...results, ...regexMatches];
+    }
+
+    res.status(200).json({
+      results,
+      totalResults: results.length,
+      searchMethod: queryEmbedding ? "semantic" : "keyword-only",
+      status: true,
+    });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ error });
+    return res.status(500).json({ error: error.message });
   }
 };
 
-module.exports.suggestions=async(req,res)=>{
-    const userid=req.user._id;
-    try{
-    const excluded_connection=await connection.find({$or:[{sender:userid},{receiver:userid}]});
-    const excludedid=excluded_connection.map((conn)=>(conn.sender.toString()===userid.toString())?conn.receiver:conn.sender);
-    excludedid.push(userid);
+// ─── Embed All Existing Profiles ────────────────────────────────────────────
+// One-time utility to generate embeddings for profiles that don't have them.
+// Called via POST /features/embed-all
+// ─────────────────────────────────────────────────────────────────────────────
+module.exports.embedAllProfiles = async (req, res) => {
+  try {
+    const profilesToEmbed = await profile
+      .find({ $or: [{ embedding: null }, { embedding: { $exists: false } }, { embedding: { $size: 0 } }] })
+      .populate("owner");
 
-    const user_profile=await profile.find({owner:userid});
-    if(!user_profile){
-        res.send("create a profile to get the suggestion");
+    if (profilesToEmbed.length === 0) {
+      return res.status(200).json({ message: "All profiles already have embeddings", count: 0 });
     }
-   
-    const suggestions=await profile.findOne({  
-        owner:{$nin:excludedid},
-        $or:[{location:user_profile.location},{"Education.school":{$in:user_profile.Education.map((e)=>e.school)}},
-            {"Education.degree":{$in:user_profile.Education?.map((e)=>e.degree) || []}},
-            {"Education.field_of_study":{$in:user_profile.Education?.map((e)=>e.field_of_study) || []}},
-             {"Experience.company":{$in:user_profile.Experience?.map((e)=>e.company) || []}},
-              {"Experience.title":{$in:user_profile.Experience?.map((e)=>e.title) || []}},
-        ]
-    }).limit(10).populate("owner")
-   
-    if(!suggestions || suggestions.length === 0){
-        res.send("oops no suggestion matching your profile")
+
+    let embeddedCount = 0;
+
+    for (const p of profilesToEmbed) {
+      const profileText = buildProfileText(p, p.owner);
+      const embeddingVector = await generateEmbedding(profileText);
+
+      if (embeddingVector) {
+        await profile.findByIdAndUpdate(p._id, { embedding: embeddingVector });
+        embeddedCount++;
+        console.log(`[AI] Embedded profile ${embeddedCount}/${profilesToEmbed.length}: ${p.owner?.display_name || p._id}`);
+      }
     }
-    res.send(`suggested profile ${suggestions}`);
+
+    res.status(200).json({
+      message: `Embeddings generated for ${embeddedCount} profile(s)`,
+      count: embeddedCount,
+      total: profilesToEmbed.length,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// ─── Connection Suggestions (Fixed) ─────────────────────────────────────────
+// Uses embedding similarity to find people similar to the current user.
+// Falls back to structured matching if no embedding exists.
+// ─────────────────────────────────────────────────────────────────────────────
+module.exports.suggestions = async (req, res) => {
+  const userid = req.user._id;
+  try {
+    // 1. Get IDs to exclude (already connected + self)
+    const excluded_connections = await connection.find({
+      $or: [{ sender: userid }, { receiver: userid }],
+    });
+    const excludedIds = excluded_connections.map((conn) =>
+      conn.sender.toString() === userid.toString() ? conn.receiver : conn.sender
+    );
+    excludedIds.push(userid);
+
+    // 2. Get current user's profile with embedding
+    const user_profile = await profile
+      .findOne({ owner: userid })
+      .select("+embedding")
+      .populate("owner");
+
+    if (!user_profile) {
+      return res.status(400).json({
+        message: "Create a profile first to get suggestions",
+        suggestions: [],
+      });
     }
-    catch(error){
-        console.log(error);
-        return res.send(error);
+
+    // 3. Get candidate profiles (not connected, not self)
+    const candidates = await profile
+      .find({ owner: { $nin: excludedIds } })
+      .select("+embedding")
+      .populate("owner");
+
+    if (!candidates || candidates.length === 0) {
+      return res.status(200).json({
+        message: "No suggestions available right now",
+        suggestions: [],
+      });
     }
-}
+
+    // 4. Score candidates using embedding similarity
+    let scored;
+    if (user_profile.embedding && user_profile.embedding.length > 0) {
+      scored = candidates
+        .map((c) => {
+          const similarity =
+            c.embedding && c.embedding.length > 0
+              ? cosineSimilarity(user_profile.embedding, c.embedding)
+              : 0;
+          const profileObj = c.toObject();
+          delete profileObj.embedding;
+          return { ...profileObj, similarityScore: Math.round(similarity * 100) / 100 };
+        })
+        .sort((a, b) => b.similarityScore - a.similarityScore)
+        .slice(0, 10); // Top 10
+    } else {
+      // No embedding — return candidates without scoring
+      scored = candidates.slice(0, 10).map((c) => {
+        const profileObj = c.toObject();
+        delete profileObj.embedding;
+        return { ...profileObj, similarityScore: null };
+      });
+    }
+
+    res.status(200).json({
+      message: "Suggestions fetched",
+      suggestions: scored,
+      status: true,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: error.message });
+  }
+};
 
 
 module.exports.get_personalized_feed = async (req, res) => {

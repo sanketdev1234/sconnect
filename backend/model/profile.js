@@ -116,6 +116,13 @@ const ProfileSchema=new Schema({
     Experience:
       [WorkSchema],
 
+    // AI: 384-dim sentence-transformer embedding for semantic search
+    embedding: {
+        type: [Number],
+        default: null,
+        select: false,  // Don't return in normal queries (large array)
+    },
+
 });
 
 const profile=mongoose.model("profile",ProfileSchema);

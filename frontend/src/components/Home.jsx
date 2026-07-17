@@ -23,6 +23,7 @@ import EditPost from './post/editpost';
 import SeeAllPostsUser from './post/seespecificpost';
 import ShowmyConnections from './connections/showmyconnections';
 import Showincomingrequest from './connections/incomingrequests';
+import SearchPeople from './SearchPeople';
 import VideoCall from './Video/VideoCall';
 import VideoCallp2p from "./Video/VideoCallp2p"
 // Routes where sidebar should NOT appear
@@ -242,6 +243,14 @@ export default function Home() {
           element={
             <ProtectedRoute>
               <Showincomingrequest />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/search"
+          element={
+            <ProtectedRoute>
+              <SearchPeople />
             </ProtectedRoute>
           }
         />
