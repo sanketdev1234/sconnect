@@ -49,6 +49,7 @@ async function embedViaAPI(text) {
     headers: {
       Authorization: `Bearer ${HF_API_TOKEN}`,
       "Content-Type": "application/json",
+      "x-wait-for-model": "true",  // Wait for model cold start
     },
     body: JSON.stringify({
       inputs: text,
@@ -117,20 +118,24 @@ async function embedLocally(text) {
  */
 async function generateEmbedding(text) {
   if (!text || !text.trim()) {
+    console.log("[AI] Skipping embedding — empty text");
     return null;
   }
 
   try {
     if (isProduction) {
-      console.log("[AI] Generating embedding via HF Inference API...");
+      console.log(`[AI] Generating embedding via HF API (token: ${HF_API_TOKEN ? "present" : "MISSING"})...`);
+      console.log(`[AI] Text preview: "${text.substring(0, 80)}..."`);
       const embedding = await embedViaAPI(text);
+      console.log(`[AI] Embedding generated successfully (${embedding.length} dims)`);
       return embedding;
     } else {
       const embedding = await embedLocally(text);
       return embedding;
     }
   } catch (err) {
-    console.error("[AI] Embedding generation failed:", err.message);
+    console.error("[AI] Embedding generation FAILED:", err.message);
+    console.error("[AI] Full error:", err);
     return null;
   }
 }
