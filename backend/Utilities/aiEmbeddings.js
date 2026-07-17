@@ -8,7 +8,7 @@
 const isProduction = process.env.NODE_ENV === "production";
 const HF_API_TOKEN = process.env.HF_TOKEN || process.env.HF_API_TOKEN || "";
 const HF_EMBEDDING_URL =
-   "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2";
+  "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction";
 
 // ─── Local pipeline (Development only) ─────────────────────────────────────
 let embedder = null;
