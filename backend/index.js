@@ -28,8 +28,11 @@ const server = createServer(app);
 const port=process.env.PORT || 8080;
 const dburl=process.env.ATLAS_URL;
 
+// Trust the Render/Vercel reverse proxy — required for secure cookies over HTTPS
+app.set('trust proxy', 1);
+
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
     credentials: true,
 }));
@@ -49,16 +52,11 @@ main()
 })
 .catch((err) => console.log(err));
 
-//   // connecting the mongo db with the localhost
+//   connecting to MongoDB
 async function main() {
-await mongoose.connect("mongodb://localhost:27017/Zoom");
+    const dbUrl = process.env.ATLAS_URL || "mongodb://localhost:27017/Zoom";
+    await mongoose.connect(dbUrl);
 }
-
-
-// // connecting the mongo database with the mongoatlas cloud servive
-// async function main() {
-//   await mongoose.connect(dburl);
-// }
 
 server.listen(port, () => {
 console.log(`server running at ${port}`);

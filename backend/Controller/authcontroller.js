@@ -41,7 +41,7 @@ module.exports.signup=async(req,res,next)=>{
 res.cookie("token", token, {
   httpOnly: true,
   secure: isProduction,
-  sameSite: isProduction ? "None" : "lax",
+  sameSite: "lax",  // same-origin via Vercel proxy — lax works in all browsers
   maxAge: 24 * 60 * 60 * 1000,
 });
 res.status(201).send("new user added");
@@ -83,7 +83,7 @@ module.exports.login=async(req,res,next)=>{
 res.cookie("token", token, {
   httpOnly: true,
   secure: isProduction,
-  sameSite: isProduction ? "None" : "lax",
+  sameSite: "lax",  // same-origin via Vercel proxy — lax works in all browsers
   maxAge: 24 * 60 * 60 * 1000,
 });
     // res.send("login successfull");
@@ -101,8 +101,8 @@ module.exports.logout=(req,res)=>{
 res.cookie("token", "", {
   httpOnly: true,
   secure: isProduction,
-  sameSite: isProduction ? "None" : "lax",
-  maxAge:0,
+  sameSite: "lax",
+  maxAge: 0,
 });
     res.send("logout done");
 

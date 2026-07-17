@@ -15,9 +15,9 @@ import {
 } from 'lucide-react';
 import { Video } from 'lucide-react';
 
-// ── Socket singleton — one connection for the whole session ──────────────────
-// Created outside component so it persists across re-renders
-const url=import.meta.env.VITE_API_URL || 'http://localhost:8080'
+// Socket.IO must connect DIRECTLY to Render (WebSockets can't go through Vercel rewrites)
+// Set VITE_SOCKET_URL=https://your-app.onrender.com in Vercel environment variables
+const url = import.meta.env.VITE_SOCKET_URL || 'http://localhost:8080';
 const socket = io(url, {
   withCredentials: true,
   autoConnect: true,

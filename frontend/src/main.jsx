@@ -9,7 +9,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import './index.css';
 
 // ── Global Axios Config ───────────────────────────────────────────────────────
-// Set once here — no need to repeat in every component
+// VITE_API_URL is set to "/api" in Vercel env vars → Vercel proxies to Render
+// In local dev, VITE_API_URL is not set → falls back to localhost:8080 directly
 axios.defaults.withCredentials = true;
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 

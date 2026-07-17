@@ -21,7 +21,9 @@ const ICE_SERVERS = {
   ]
 };
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// Socket.IO must connect DIRECTLY to Render (WebSockets can't go through Vercel rewrites)
+// Set VITE_SOCKET_URL=https://your-app.onrender.com in Vercel environment variables
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:8080';
 
 export default function VideoCallp2p() {
   const { joinid } = useParams();
