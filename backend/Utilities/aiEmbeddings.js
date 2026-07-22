@@ -64,37 +64,39 @@ async function embedViaAPI(text) {
 
   const result = await response.json();
 
-  // HF returns token-level embeddings: [[token1_384d], [token2_384d], ...]
-  // We need to mean-pool them into a single 384-dim vector
-  if (Array.isArray(result) && Array.isArray(result[0])) {
-    // If result is 2D array (tokens × dims), mean pool across tokens
-    if (Array.isArray(result[0][0])) {
-      // Shape: [1, num_tokens, 384] — squeeze first dim, then mean pool
-      const tokens = result[0];
-      const dims = tokens[0].length;
-      const meanVec = new Array(dims).fill(0);
-      for (const token of tokens) {
-        for (let i = 0; i < dims; i++) {
-          meanVec[i] += token[i];
-        }
-      }
-      for (let i = 0; i < dims; i++) {
-        meanVec[i] /= tokens.length;
-      }
-      // L2 normalize
-      const norm = Math.sqrt(meanVec.reduce((sum, v) => sum + v * v, 0));
-      if (norm > 0) {
-        for (let i = 0; i < dims; i++) {
-          meanVec[i] /= norm;
-        }
-      }
-      return meanVec;
-    }
-    // Shape: [384] — already a single vector (sentence-transformers pipeline)
+  // Case 1: Direct 1D array of numbers [0.1, 0.2, ... 384 dims]
+  if (Array.isArray(result) && typeof result[0] === "number") {
+    return result;
+  }
+
+  // Case 2: 2D array [[0.1, 0.2, ...]] -> shape [1, 384]
+  if (Array.isArray(result) && Array.isArray(result[0]) && typeof result[0][0] === "number") {
     return result[0];
   }
 
-  throw new Error("Unexpected HF API embedding response format");
+  // Case 3: 3D token-level array [[[token1], [token2]]] -> mean pool
+  if (Array.isArray(result) && Array.isArray(result[0]) && Array.isArray(result[0][0])) {
+    const tokens = result[0];
+    const dims = tokens[0].length;
+    const meanVec = new Array(dims).fill(0);
+    for (const token of tokens) {
+      for (let i = 0; i < dims; i++) {
+        meanVec[i] += token[i];
+      }
+    }
+    for (let i = 0; i < dims; i++) {
+      meanVec[i] /= tokens.length;
+    }
+    const norm = Math.sqrt(meanVec.reduce((sum, v) => sum + v * v, 0));
+    if (norm > 0) {
+      for (let i = 0; i < dims; i++) {
+        meanVec[i] /= norm;
+      }
+    }
+    return meanVec;
+  }
+
+  throw new Error("Unexpected HF API embedding response format: " + JSON.stringify(result).substring(0, 100));
 }
 
 // ─── Local embedding (Development) ──────────────────────────────────────────
