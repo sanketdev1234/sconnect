@@ -69,10 +69,11 @@ export default function EditPost() {
       setExistingImage(post.media?.media_url || null);
 
     } catch (err) {
+      const serverMsg = err.response?.data?.message;
       if (err.response?.status === 401) {
         setFetchError('Session expired. Please log in again.');
       } else if (err.response?.status === 403) {
-        setFetchError('You are not authorised to edit this post.');
+        setFetchError(serverMsg || 'You are not authorised to edit this post.');
       } else if (err.response?.status === 404) {
         setFetchError('Post not found. It may have been deleted.');
       } else {
@@ -206,17 +207,19 @@ export default function EditPost() {
       }
 
     } catch (err) {
+      const serverMsg = err.response?.data?.message;
       if (err.response?.status === 401) {
         setError('Session expired. Please log in again.');
         toast.error('Session expired');
       } else if (err.response?.status === 403) {
-        setError('You are not authorised to edit this post.');
-        toast.error('Not authorised');
+        const msg = serverMsg || 'You are not authorised to edit this post.';
+        setError(msg);
+        toast.error(msg);
       } else if (err.response?.status === 413) {
         setFileError('Image is too large. Please use an image under 5MB.');
       } else {
         setError(
-          err.response?.data?.message ||
+          serverMsg ||
           'Failed to update post. Please try again.'
         );
       }
@@ -314,7 +317,9 @@ export default function EditPost() {
               {fetchError}
             </p>
             <p className="text-xs text-gray-400 mb-5">
-              {fetchError.includes('authorised')
+              {fetchError.includes('expired') || fetchError.includes('30 minutes')
+                ? 'Posts can only be edited within 30 minutes of creation.'
+                : fetchError.includes('authorised')
                 ? 'Only the post author can edit this post.'
                 : 'Check your connection and try again.'}
             </p>
