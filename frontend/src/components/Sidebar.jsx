@@ -140,10 +140,10 @@ export default function Sidebar() {
   ];
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
 
       {/* User Info Header */}
-      <div className="p-4 border-b border-gray-100">
+      <div className="p-4 border-b border-gray-100 flex-shrink-0">
         <div className="flex items-center gap-3">
           {hasRealPhoto ? (
             <img
@@ -212,7 +212,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom Actions */}
-      <div className="p-3 border-t border-gray-100 space-y-2">
+      <div className="p-3 border-t border-gray-100 space-y-2 flex-shrink-0 bg-white">
         {!profileLoading && profileData && (
           <button
             onClick={handleDownloadPDF}
@@ -255,12 +255,12 @@ export default function Sidebar() {
       )}
 
       <aside className={`
-        fixed top-0 left-0 h-full w-60 bg-white border-r border-gray-200 z-40
+        fixed top-0 left-0 h-full w-60 bg-white border-r border-gray-200 z-40 flex flex-col overflow-hidden
         transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0
       `}>
-        <div className="flex items-center gap-2 px-4 py-3.5 border-b border-gray-100">
+        <div className="flex items-center gap-2 px-4 py-3.5 border-b border-gray-100 flex-shrink-0">
           <div className="w-7 h-7 bg-gray-900 rounded-lg flex items-center justify-center">
             <span className="text-white text-xs font-bold">S</span>
           </div>

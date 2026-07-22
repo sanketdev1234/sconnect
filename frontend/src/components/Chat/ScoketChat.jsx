@@ -73,7 +73,7 @@ function MessageBubble({
       </div>
 
       {/* Content */}
-      <div className={`max-w-xs sm:max-w-sm flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+      <div className={`max-w-[75%] sm:max-w-sm flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
 
         {/* Sender name — only for others */}
         {!isOwn && (
@@ -668,105 +668,104 @@ const handleEndNow = async () => {
       />
 
       {/* ── Top Bar ── */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleLeave}
-            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Leave meeting"
-          >
-            <ArrowLeft size={18} />
-          </button>
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-3 py-2 shadow-sm w-full max-w-full overflow-x-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* Left side — back, info, timer */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleLeave}
+              className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+              title="Leave meeting"
+            >
+              <ArrowLeft size={18} />
+            </button>
 
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
-              <MessageSquare size={14} className="text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-gray-900">
-                  Meeting Chat
-                </p>
-                {/* Socket connection indicator */}
-                <div className="flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    socketConnected ? 'bg-green-500' : 'bg-red-400'
-                  }`} />
-                  <span className="text-xs text-gray-400">
-                    {socketConnected ? 'Connected' : 'Reconnecting...'}
-                  </span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                <MessageSquare size={14} className="text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs sm:text-sm font-bold text-gray-900">
+                    Meeting Chat
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      socketConnected ? 'bg-green-500' : 'bg-red-400'
+                    }`} />
+                    <span className="text-[10px] sm:text-xs text-gray-400">
+                      {socketConnected ? 'Connected' : 'Reconnecting...'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-400">
+                  <Hash size={10} />
+                  <span className="font-mono">{joinid}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                <Hash size={10} />
-                <span className="font-mono">{joinid}</span>
-              </div>
             </div>
+
+            {timeRemaining !== null && (
+              <div className={`flex items-center gap-1 px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg flex-shrink-0 ${
+                timeRemaining <= 5 * 60 * 1000
+                  ? 'bg-red-50 text-red-600 border border-red-200'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                <Clock size={11} />
+                {timeRemaining === 0 ? 'Ended' : formatTimeRemaining(timeRemaining)}
+              </div>
+            )}
           </div>
 
-          {timeRemaining !== null && (
-      <div className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg ${
-    timeRemaining <= 5 * 60 * 1000
-      ? 'bg-red-50 text-red-600 border border-red-200'
-      : 'bg-gray-100 text-gray-600'
-  }`}>
-    <Clock size={12} />
-    {timeRemaining === 0 ? 'Ended' : formatTimeRemaining(timeRemaining)}
-  </div>
-)}
+          {/* Right side — action buttons */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => setShowOnlinePanel(p => !p)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                showOnlinePanel
+                  ? 'bg-gray-900 text-white border-gray-900'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Users size={13} />
+              <span>{onlineUsers.length}</span>
+            </button>
 
+            {isHost && (
+              <button
+                onClick={handleEndNow}
+                className="flex items-center gap-1 px-2 py-1.5 text-xs font-semibold border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                End
+              </button>
+            )}
+
+            <button
+              onClick={handleLeave}
+              className="flex items-center gap-1 px-2 py-1.5 text-xs font-semibold border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              Leave
+            </button>
+
+            <button
+              onClick={() => navigate(`/videocall/${joinid}`)}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <Video size={13} />
+              <span className="hidden sm:inline">Start Video</span>
+              <span className="sm:hidden">Video</span>
+            </button>
+
+            <button
+              onClick={() => navigate(`/videocall/p2p/${joinid}`)}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <Video size={13} />
+              <span className="hidden sm:inline">P2P Video</span>
+              <span className="sm:hidden">P2P</span>
+            </button>
+          </div>
         </div>
-
-        {/* Right side — online users toggle */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowOnlinePanel(p => !p)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-              showOnlinePanel
-                ? 'bg-gray-900 text-white border-gray-900'
-                : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <Users size={13} />
-            {onlineUsers.length}
-          </button>
-           
-
-           {isHost && (
-  <button
-    onClick={handleEndNow}
-    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-  >
-    End Meeting
-  </button>
-)} 
-
-
-          <button
-            onClick={handleLeave}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-          >
-            Leave
-          </button>
-        </div>
-
-        <button
-  onClick={() => navigate(`/videocall/${joinid}`)}
-  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
->
-  <Video size={13} />
-  Start Video 
-</button>
-
-
-        <button
-  onClick={() => navigate(`/videocall/p2p/${joinid}`)}
-  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
->
-  <Video size={13} />
-  Start Video p2p(max 2 size)
-</button>
-
       </div>
 
       {/* ── Body: chat + optional online panel ── */}
