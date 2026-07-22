@@ -134,9 +134,9 @@ function MessageBubble({
                 {formatTime(msg.createdAt)}
               </span>
 
-              {/* Own message actions — visible on hover */}
+              {/* Own message actions — visible on touch devices (mobile) & hover on desktop */}
               {isOwn && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => onEdit(msg)}
                     className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
@@ -815,8 +815,10 @@ const handleEndNow = async () => {
             ) : (
               messages.map((msg, i) => {
                 const isOwn =
+                  msg.isOwn === true ||
                   msg.displayname === curruser?.display_name ||
-                  msg.user?._id?.toString() === curruser?._id?.toString();
+                  msg.user?._id?.toString() === curruser?._id?.toString() ||
+                  (typeof msg.user === 'string' && msg.user === curruser?._id?.toString());
 
                 // Show date separator when day changes
                 const showDateSep = i === 0 || (
