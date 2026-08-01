@@ -232,13 +232,13 @@ export default function VideoCall() {
           <span className="text-xs text-gray-400 px-2 py-1 bg-gray-800 rounded-lg">
             {participantCount} {participantCount === 1 ? 'participant' : 'participants'}
           </span>
-          <button
+          {/* <button
             onClick={() => navigate(`/ongoingmeet/${joinid}`)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
           >
             <MessageSquare size={13} />
-            Chat
-          </button>
+            Chat */}
+          {/* </button>  */}
         </div>
       </div>
 

@@ -73,10 +73,10 @@ export default function Login() {
         }
       } else if (msg === 'user not register') {
         setErrors({ email: 'No account found with this email address.' });
-        toast.error('Account not found');
+        toast.error('Account not found or incorrect email address');
       } else if (msg === 'incorrect email or password') {
-        setErrors({ password: 'Incorrect password. Please try again.' });
-        toast.error('Incorrect password');
+        setErrors({ password: 'Incorrect password or email. Please try again.' });
+        toast.error('Incorrect password or email');
       } else if (msg === 'both the filed are required') {
         setErrors({ general: 'Please fill in both email and password.' });
       } else {
