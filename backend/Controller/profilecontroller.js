@@ -89,22 +89,20 @@ module.exports.createProfile=async(req,res)=>{
 
 module.exports.updateProfile=async(req,res)=>{
     const profileid=req.params.profileId;
-    // const {error,value}=validators.profile_validator_update.validate(req.body);
+    const {error,value}=validators.profile_validator_update.validate(req.body);
    
-    // if(error){
-    //     console.log("schema validation of profile update fail");
-    //     return res.send(error);
-    // }
-    // else{
-    // console.log('Validated Data:', value);
-    // if(Object.keys(value).length===0){
-    //     return res.send("no fields to update!");
-    // }
-    // }
-       try{
-        const updated_profile=await profile.findOneAndUpdate({_id:profileid,owner:req.user._id},{$set:req.body},{new:true});
+    if(error){
+        console.log("schema validation of profile update fail:", error.details?.[0]?.message || error);
+        return res.status(400).json({ status: false, message: error.details?.[0]?.message || "Validation failed" });
+    }
+    
+    if(Object.keys(value).length===0){
+        return res.status(400).json({ status: false, message: "no fields to update!" });
+    }
+
+    try{
+        const updated_profile=await profile.findOneAndUpdate({_id:profileid,owner:req.user._id},{$set:value},{new:true});
         console.log("updated profile is :",updated_profile);
-        // res.send(` profile gets updated! : ${ updated_profile}`);
         res.status(200).json({
             message:"profile updated!",
             newprofile:updated_profile,
