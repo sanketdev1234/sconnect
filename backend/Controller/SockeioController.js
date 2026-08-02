@@ -4,8 +4,6 @@ require("dotenv").config({path:require("path").resolve(__dirname,"../.env")});
 // Controller/SockeioController.js
 const { Server } = require('socket.io');
 const cors = require("cors");
-
-// ✅ Track online users PER ROOM, not globally
 // Structure: Map<joinid, Map<socketId, displayname>>
 const roomUsers = new Map();
 
@@ -89,7 +87,7 @@ module.exports.SocketController = (server) => {
       if (!userrooms.has(displayname)) userrooms.set(displayname, new Set());
       userrooms.get(displayname).add(joinid);
 
-      // ✅ Track per-room, keyed by socket.id (not displayname) — this is the fix
+      //  Track per-room, keyed by socket.id (not displayname) — this is the fix
       if (!roomUsers.has(joinid)) {
         roomUsers.set(joinid, new Map());
       }
@@ -131,13 +129,13 @@ module.exports.SocketController = (server) => {
       }
     });
 
-    // ✅ NEW — Host ends the meeting, server relays to ALL clients in the room
+    // NEW — Host ends the meeting, server relays to ALL clients in the room
     socket.on('Meeting Ended', ({ joinid, meetid }) => {
       console.log(`Meeting ${joinid} ended — notifying all participants`);
       io.to(joinid).emit('Meeting Ended', { joinid, meetid });
     });
 
-    // ✅ NEW — Handles tab close, refresh, network drop, crash
+    // NEW — Handles tab close, refresh, network drop, crash
     // This is the critical fix — 'Leave Meet' alone never catches these cases
     socket.on('disconnect', () => {
       const displayname = socket.data.displayname;
@@ -149,7 +147,7 @@ module.exports.SocketController = (server) => {
         broadcastOnlineUsers(joinid);
       });
 
-        // ✅ add this — notify webrtc peer on any disconnect, not just explicit leave
+        //  add this — notify webrtc peer on any disconnect, not just explicit leave
   if (socket.data.webrtcRoom) {
     socket.to(socket.data.webrtcRoom).emit("webrtc-peer-left", {
       fromSocketId: socket.id
@@ -194,7 +192,7 @@ socket.on("webrtc-ice-candidate", ({ candidate, targetSocketId }) => {
 socket.on("webrtc-join-room", ({ joinid, displayname }) => {
   // Notify existing users in room that a new peer wants to connect
   // They will initiate the offer
-   socket.join(joinid); // ✅ add this
+   socket.join(joinid); //  add this
   socket.data.webrtcRoom = joinid; // track for cleanup below
  
   console.log(`${displayname} joining WebRTC room ${joinid}`);

@@ -3,10 +3,6 @@ const connection=require("../model/connections");
 const post=require("../model/post");
 const { generateEmbedding, buildProfileText, cosineSimilarity } = require("../Utilities/aiEmbeddings");
 
-// ─── Semantic People Search ─────────────────────────────────────────────────
-// Uses all-MiniLM-L6-v2 sentence-transformer embeddings for semantic matching.
-// Falls back to regex search for profiles that don't have embeddings yet.
-// ─────────────────────────────────────────────────────────────────────────────
 module.exports.search_by_profile = async (req, res) => {
   const { query } = req.query;
 
@@ -83,10 +79,6 @@ module.exports.search_by_profile = async (req, res) => {
   }
 };
 
-// ─── Embed All Existing Profiles ────────────────────────────────────────────
-// One-time utility to generate embeddings for profiles that don't have them.
-// Called via POST /features/embed-all
-// ─────────────────────────────────────────────────────────────────────────────
 module.exports.embedAllProfiles = async (req, res) => {
   try {
     const profilesToEmbed = await profile
@@ -121,17 +113,7 @@ module.exports.embedAllProfiles = async (req, res) => {
   }
 };
 
-// ─── AI Connection Recommendations (Multi-Signal + Embeddings) ──────────────
-// Combines 5 scoring signals to recommend connections:
-//   1. Mutual connections (graph analysis)     → weight: 0.30
-//   2. Same company (current/past)             → weight: 0.25
-//   3. Same school/university                  → weight: 0.20
-//   4. Same location                           → weight: 0.10
-//   5. Profile embedding similarity (AI)       → weight: 0.15
-// Each recommendation includes human-readable "reasons" explaining WHY.
-// ─────────────────────────────────────────────────────────────────────────────
 
-// Signal weights — tunable for experimentation
 const WEIGHTS = {
   mutualConnections: 0.30,
   sameCompany: 0.25,

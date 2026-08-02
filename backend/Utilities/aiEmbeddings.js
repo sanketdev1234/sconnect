@@ -1,9 +1,3 @@
-// Utilities/aiEmbeddings.js
-// ─── Semantic Embedding Generator ───────────────────────────────────────────
-// Production: Uses Hugging Face Inference API (free, 1000 req/day)
-// Development: Uses Transformers.js local pipeline (runs on your machine)
-// Model: all-MiniLM-L6-v2 (384-dim sentence embeddings, same model both modes)
-// ─────────────────────────────────────────────────────────────────────────────
 
 const isProduction = process.env.NODE_ENV === "production";
 const HF_API_TOKEN = process.env.HF_TOKEN || process.env.HF_API_TOKEN || "";

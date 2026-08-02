@@ -1,9 +1,3 @@
-// Utilities/aiSummarizer.js
-// ─── AI Meeting Summarizer ──────────────────────────────────────────────────
-// Production: Uses Hugging Face Inference API (free, 1000 req/day)
-// Development: Uses Transformers.js local pipeline (runs on your machine)
-// Model: distilbart-cnn-6-6 (same model, both modes)
-// ─────────────────────────────────────────────────────────────────────────────
 
 const isProduction = process.env.NODE_ENV === "production";
 const HF_API_TOKEN = process.env.HF_TOKEN || process.env.HF_API_TOKEN || "";
